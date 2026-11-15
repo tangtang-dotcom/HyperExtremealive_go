@@ -26,7 +26,7 @@ jobs:
           export PATH="$SDKM:$SDK/platform-tools:$PATH"
           echo "sdk.dir=$SDK" > local.properties
           yes | sdkmanager --sdk_root="$SDK" --licenses >/dev/null 2>&1 || true
-          sdkmanager --sdk_root="$SDK" --install "platform-tools" "platforms;android-37" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+          sdkmanager --sdk_root="$SDK" --install "platform-tools" "platforms;android-37.0" "platforms;android-37.2" "build-tools;37.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
           echo '--- installed ---'
           ls "$SDK/platforms" "$SDK/build-tools" "$SDK/ndk" 2>/dev/null || true
       - name: Setup Gradle
