@@ -13,9 +13,6 @@ final class AodPanelHold {
     private static final float DARK_R = 0.02f;
     private static final float BRIGHT_R = 0.15f;
 
-    // Stateless; kept for API parity.
-    void clear(){}
-
     static boolean valid(float value){return Float.isFinite(value)&&value>0&&value<=1;}
 
     float brightness(float requested,float normal,float level,boolean eligible){
