@@ -13,30 +13,33 @@ import java.util.function.Consumer;
 
 /** Adapter for Xiaomi's full-AOD strategy, which bypasses DozeService brightness requests. */
 final class MiuiAodPanelBrightness {
-    // AOD->lockscreen handoff smoothing: while in AOD the panel sits at the boosted AOD backlight;
-    // when the lockscreen appears the framework snaps it down to the lock brightness, which reads as
-    // a flashbang. For a short window after a wake we linearly fade the applied panel brightness from
-    // the AOD value down to whatever the system now asks for, then hand control back to system auto
-    // brightness (pass-through once the fade window ends).
-    static volatile float normalCap=Float.NaN; // kept for diagnostics only
-    private static volatile float lastSink=Float.NaN;
-    private static volatile float fadeFrom=Float.NaN;
+    // AOD->lockscreen: keep the lockscreen at the AOD brightness first (so AOD->lock has no step,
+    // no flash), hold that for a moment, then linearly hand it back to the system target brightness.
+    // aodWakeBrightness = the panel brightness our AOD lift was using, captured in update().
+    static volatile float normalCap=Float.NaN;          // diagnostics
+    static volatile float aodWakeBrightness=Float.NaN;   // last AOD panel brightness (set in update)
+    private static volatile float holdValue=Float.NaN;
     private static volatile long wakeAt=0L;
-    private static volatile long fadeStart=0L;
-    private static final long WAKE_FADE_MS=450L;
-    static void onWake(){long n=android.os.SystemClock.uptimeMillis();wakeAt=n;fadeStart=n;fadeFrom=lastSink;}
+    private static volatile long holdUntil=0L;
+    private static volatile long fadeEnd=0L;
+    private static final long HOLD_MS=3000L;   // lockscreen stays at AOD brightness
+    private static final long FADE_MS=1500L;   // then fade back to system brightness
+    static void onWake(){
+        long n=android.os.SystemClock.uptimeMillis();
+        wakeAt=n; holdUntil=n+HOLD_MS; fadeEnd=n+HOLD_MS+FADE_MS; holdValue=aodWakeBrightness;
+    }
     static float clampApplied(float brightness){
-        // Only fraction-scale (0,1] brightness. Skip nits/DBV-sized floats (e.g. SurfaceControl ~83.57)
-        // that share the same call and must not be rewritten with a 0..1 value.
+        // Only fraction-scale (0,1] brightness. Skip nits/DBV-sized floats (e.g. SurfaceControl ~83.57).
         if(brightness<=0f||brightness>1f)return brightness;
         long now=android.os.SystemClock.uptimeMillis();
-        if(wakeAt==0L||now-wakeAt>WAKE_FADE_MS||!Float.isFinite(fadeFrom)||fadeFrom<=brightness){
-            lastSink=brightness;return brightness;
+        if(wakeAt==0L||now>fadeEnd||!Float.isFinite(holdValue)||holdValue<=0f||holdValue>1f)
+            return brightness;                        // outside window / unknown AOD value: pass through
+        if(now<=holdUntil){
+            return brightness<holdValue?holdValue:brightness;   // hold lockscreen at AOD brightness
         }
-        float t=(float)(now-fadeStart)/(float)WAKE_FADE_MS; if(t<0f)t=0f; else if(t>1f)t=1f;
-        float out=fadeFrom+(brightness-fadeFrom)*t;   // linear crossfade AOD -> system target
+        float t=(float)(now-holdUntil)/(float)FADE_MS; if(t<0f)t=0f; else if(t>1f)t=1f;
+        float out=holdValue+(brightness-holdValue)*t; // linear fade AOD brightness -> system target
         if(out<brightness)out=brightness;             // never undershoot the system target
-        lastSink=out;
         return out;
     }
     // Clamp every float argument (brightness/sdr/backlight) of an intercepted sink call.
@@ -127,6 +130,7 @@ final class MiuiAodPanelBrightness {
                 if(!owned||!eligible||AodBrightness.normalize(level)==0){sessions.remove(strategy);return original;}
                 held=sessions.computeIfAbsent(strategy,key->new AodPanelHold())
                     .brightness(nativeBrightness,normal,level,true);
+                if(Float.isFinite(held)&&held>0f)aodWakeBrightness=held;
             }
             if(held==nativeBrightness||!AodPanelHold.valid(held))return original;
             Object result=copyBrightness(original,held);
