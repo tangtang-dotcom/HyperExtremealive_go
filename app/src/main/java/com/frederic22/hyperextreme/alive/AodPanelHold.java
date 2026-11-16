@@ -22,8 +22,8 @@ final class AodPanelHold {
         if(!eligible||AodBrightness.normalize(level)==0)return requested;
         if(!valid(requested))return requested;
         float lv=AodBrightness.normalize(level);
-        float lowMax=1f+1.8f*lv;    // dark-end multiplier (lv5 -> x10)
-        float highMin=1f+0.16f*lv;  // bright-end multiplier (lv5 -> x1.8)
+        float lowMax=AodBrightness.aodDarkFactor(lv);    // dark-end multiplier (lv5 -> x10)
+        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x1.8)
         float out;
         if(requested<=DARK_R){
             out=requested*lowMax;                       // dim: big boost

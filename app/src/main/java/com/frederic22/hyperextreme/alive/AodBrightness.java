@@ -11,6 +11,10 @@ public final class AodBrightness {
     public static final float DEFAULT=0f,MIN=0f,MAX=5f,STEP=.25f;
     private AodBrightness(){}
     public static float normalize(float value){return Float.isFinite(value)?Math.max(MIN,Math.min(MAX,value)):DEFAULT;}
+    // AOD adaptive-lift multipliers, shared by the panel hook (AodPanelHold) and the settings UI,
+    // so the slider table always matches what actually happens to the panel.
+    public static float aodDarkFactor(float level){return 1f+1.8f*normalize(level);}    // dim AOD: x2.8 (lv1) .. x10 (lv5)
+    public static float aodBrightFactor(float level){return 1f+0.16f*normalize(level);}  // bright AOD: x1.16 .. x1.8
     public static float load(Context context){return normalize(Config.prefs(context).getFloat(KEY,DEFAULT));}
     public static void save(Context context,float value){
         Config.prefs(context).edit().putFloat(KEY,normalize(value)).apply();
