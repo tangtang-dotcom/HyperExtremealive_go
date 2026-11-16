@@ -29,18 +29,10 @@ final class MiuiAodPanelBrightness {
         wakeAt=n; holdUntil=n+HOLD_MS; fadeEnd=n+HOLD_MS+FADE_MS; holdValue=aodWakeBrightness;
     }
     static float clampApplied(float brightness){
-        // Only fraction-scale (0,1] brightness. Skip nits/DBV-sized floats (e.g. SurfaceControl ~83.57).
-        if(brightness<=0f||brightness>1f)return brightness;
-        long now=android.os.SystemClock.uptimeMillis();
-        if(wakeAt==0L||now>fadeEnd||!Float.isFinite(holdValue)||holdValue<=0f||holdValue>1f)
-            return brightness;                        // outside window / unknown AOD value: pass through
-        if(now<=holdUntil){
-            return brightness<holdValue?holdValue:brightness;   // hold lockscreen at AOD brightness
-        }
-        float t=(float)(now-holdUntil)/(float)FADE_MS; if(t<0f)t=0f; else if(t>1f)t=1f;
-        float out=holdValue+(brightness-holdValue)*t; // linear fade AOD brightness -> system target
-        if(out<brightness)out=brightness;             // never undershoot the system target
-        return out;
+        // AOD brightness must stay independent: never raise the lockscreen/desktop above the
+        // system's own brightness. Leaving AOD hands straight back to system brightness, so this
+        // sink layer must not touch it (no hold, no residue). The AOD lift lives in the doze strategy.
+        return brightness;
     }
     // Clamp every float argument (brightness/sdr/backlight) of an intercepted sink call.
     // Returns a replacement Object[] when at least one value changed, else null.
