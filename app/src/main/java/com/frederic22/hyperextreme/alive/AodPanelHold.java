@@ -1,20 +1,17 @@
 package com.frederic22.hyperextreme.alive;
 
 /**
- * Adds a fixed absolute brightness step (in backlight DBV) on top of the live, ambient-driven
- * doze brightness. The offset is a user-chosen amount (level 1..5 -> +800..+4000 DBV), applied
- * in real time every time the display strategy recomputes brightness, so AOD keeps tracking
- * ambient light while being uniformly lifted.
- *
- * This is the "strong" build: level 5 approaches the panel HBM ceiling (~0.25 / ~600 nits),
- * enough to be usable outdoors. No soft ceiling beyond the panel's physical 1.0; you dial the
- * level yourself. High levels are bright and increase burn-in/power risk.
+ * Adaptive AOD lift: dim AOD gets a large multiplier, already-bright AOD gets a small one.
+ * The input is the live ambient-computed doze brightness (real-time), so this follows ambient
+ * every frame. Slider level 1..5 scales the aggressiveness:
+ *   - dark end multiplier   = 1 + 1.8*level   (level 5 -> x10, level 1 -> x2.8)
+ *   - bright end multiplier = 1 + 0.16*level  (level 5 -> x1.8, level 1 -> x1.16)
+ * Output is monotonic in input (never dimmer than stock); only the panel's physical 1.0 caps it.
  */
 final class AodPanelHold {
-    // Backlight register full scale minus one (~16383-1); turns a DBV step into a brightness fraction.
-    private static final float DBV_MAX = 16382f;
-    // Each +1.0 on the slider adds this many DBV (level 5 -> +4000 DBV ~ near the panel HBM ceiling; level 1 -> +800).
-    private static final float DBV_PER_LEVEL = 800f;
+    // Below DARK_R the full dark multiplier applies; above BRIGHT_R the small bright multiplier does.
+    private static final float DARK_R = 0.02f;
+    private static final float BRIGHT_R = 0.15f;
 
     // Stateless; kept for API parity.
     void clear(){}
@@ -24,9 +21,21 @@ final class AodPanelHold {
     float brightness(float requested,float normal,float level,boolean eligible){
         if(!eligible||AodBrightness.normalize(level)==0)return requested;
         if(!valid(requested))return requested;
-        float addFrac=DBV_PER_LEVEL*AodBrightness.normalize(level)/DBV_MAX; // fixed DBV step on the live ambient value
-        float out=requested+addFrac;
-        if(out>1f)out=1f; // only the panel's physical ceiling; no soft cap
+        float lv=AodBrightness.normalize(level);
+        float lowMax=1f+1.8f*lv;    // dark-end multiplier (lv5 -> x10)
+        float highMin=1f+0.16f*lv;  // bright-end multiplier (lv5 -> x1.8)
+        float out;
+        if(requested<=DARK_R){
+            out=requested*lowMax;                       // dim: big boost
+        }else if(requested>=BRIGHT_R){
+            out=requested*highMin;                      // already bright: gentle boost
+        }else{
+            float oLo=DARK_R*lowMax,oHi=BRIGHT_R*highMin;
+            float u=(requested-DARK_R)/(BRIGHT_R-DARK_R);
+            out=oLo+(oHi-oLo)*u;                        // smooth monotonic bridge
+        }
+        if(out>1f)out=1f;           // only the panel's physical ceiling
+        if(out<requested)out=requested; // monotonic: never dimmer than the live value
         return out;
     }
 
