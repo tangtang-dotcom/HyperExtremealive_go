@@ -169,13 +169,13 @@ public final class AliveHooks {
             if(systemAdapter)MIUI_AOD_PANEL.refresh(c,worker());
             retry=result==null||cached.getBoolean("configured",false)&&!cached.getBoolean("enabled",false);
             LiquidKeyguardHooks.config(cached);
-            if(cached.getBoolean("launcher_scroll",true)){
-                long ens=SystemClock.uptimeMillis();
-                if(ens-launcherScrollEnsureAt>2000){
-                    launcherScrollEnsureAt=ens;
-                    final Context cc=c;
-                    worker().post(()->{ launcherScrollSetAt=0; applyLauncherWallpaperScroll(cc.getContentResolver()); });
-                }
+            long ens=SystemClock.uptimeMillis();
+            if(ens-launcherScrollEnsureAt>2000){
+                launcherScrollEnsureAt=ens;
+                final Context cc=c;
+                // Always reconcile to the toggle's desired 0/1 — this also turns the flag OFF
+                // again when the user disables "desktop gesture follow".
+                worker().post(()->{ launcherScrollSetAt=0; applyLauncherWallpaperScroll(cc.getContentResolver()); });
             }
         } catch (RuntimeException error) {
             cached = Bundle.EMPTY;

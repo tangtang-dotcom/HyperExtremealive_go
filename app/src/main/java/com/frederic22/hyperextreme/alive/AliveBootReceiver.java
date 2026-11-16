@@ -29,7 +29,18 @@ public final class AliveBootReceiver extends BroadcastReceiver {
             if(!Config.prefs(context).getBoolean("enabled",false))return false;
             WallpaperManager manager=WallpaperManager.getInstance(context);
             WallpaperInfo info=manager==null?null:manager.getWallpaperInfo();
-            if(info==null)return true; // default/static fallback: our slot is still the one to restore
+            if(info==null){
+                // A null WallpaperInfo also covers a user-set static image. Only the genuine
+                // "no wallpaper at all" fallback should be re-asserted; if a static file exists
+                // the user has made a choice and we must leave it alone.
+                boolean staticFile=false;
+                try{
+                    android.os.ParcelFileDescriptor file=manager==null?null:manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM);
+                    staticFile=file!=null;
+                    if(file!=null)file.close();
+                }catch(Throwable ignored){/* query not permitted: treat as no static file */ }
+                return !staticFile;
+            }
             String pkg=info.getComponent().getPackageName();
             return context.getPackageName().equals(pkg)||"com.miui.miwallpaper".equals(pkg);
         }catch(Throwable unavailable){
