@@ -63,6 +63,25 @@ public final class AliveHooks {
         if (logger != null) logger.log(Log.INFO, Protocol.TAG, message);
     }
 
+    // HyperOS MiuiHome (Flutter/Rust rewrite) gates wallpaper scrolling behind the secure flag
+    // pref_key_wallpaper_screen_scrolled_span; while it is 0 the launcher never calls
+    // setWallpaperOffsets, so the live wallpaper's onOffsetsChanged/gesture-follow never fires.
+    // Flip it to 1 (system_server holds WRITE_SECURE_SETTINGS) so the desktop reports offsets.
+    private static void enableLauncherWallpaperScroll() {
+        try {
+            Context c = context();
+            if (c == null) return;
+            android.content.ContentResolver cr = c.getContentResolver();
+            int value = android.provider.Settings.Secure.getInt(cr, "pref_key_wallpaper_screen_scrolled_span", 0);
+            if (value <= 0) {
+                android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
+                log("Alive gesture: enabled launcher wallpaper scroll (was " + value + ")");
+            }
+        } catch (Throwable error) {
+            log("Alive gesture: launcher scroll flag unavailable: " + error);
+        }
+    }
+
     private static Context context() {
         if (context != null) return context;
         try {
@@ -209,6 +228,7 @@ public final class AliveHooks {
             return chain.getArgs().size()==5?AodLockBrightness.settle(chain.getThisObject(),result):result;
         });
         worker().post(AliveHooks::refresh);
+        worker().post(AliveHooks::enableLauncherWallpaperScroll);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
             return ForcedAodSupport.active(context()) ? true : chain.proceed();
         });

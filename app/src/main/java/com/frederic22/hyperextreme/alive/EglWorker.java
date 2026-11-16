@@ -27,6 +27,7 @@ final class EglWorker {
     volatile long discardedFrames,lastFrameAtMs,lastSwapStartedMs,maxSwapMs;
     volatile String frameStage="idle";
     volatile int swapInterval=1;
+    private volatile long lastLauncherOffsetLogMs;
     private LiquidTouchMap pendingLiquidMap;
     private final AtomicLong generations = new AtomicLong();
     private final AtomicLong inputEpoch = new AtomicLong();
@@ -312,12 +313,20 @@ final class EglWorker {
     void launcherOffset(float x,float y,float xStep,float yStep){
         long sequence=requestedState.sequence,generation=generations.get(),epoch=inputEpoch.get(),time=System.nanoTime();
         boolean wasVisible=requestedVisible;
+        // A ZERO page step is a single-page (non-scrolling) axis. A NON-zero step — including the
+        // -1 sentinel HyperOS MiuiHome sends for "scrollable, auto step" — means the offset track is
+        // real, so use the page offset. Previously only xStep>0 was honored, which silently dropped
+        // MiuiHome's -1 offsets and killed home gesture-follow.
+        final boolean scrollX=Float.isFinite(x)&&xStep!=0f;
+        final boolean scrollY=Float.isFinite(y)&&yStep!=0f;
+        long nowMs=SystemClock.uptimeMillis();
+        if(nowMs-lastLauncherOffsetLogMs>=1000){lastLauncherOffsetLogMs=nowMs;
+            Log.i(Protocol.TAG,"launcher offset x="+x+" y="+y+" xStep="+xStep+" scroll="+scrollX);}
         handler.post(()->{try{
             if(renderer==null)return;
             if(renderer.motion() instanceof InfinityMotion){
                 if(!infinityInput(sequence,generation,epoch,wasVisible)||state.mode!=2)return;
-                // A zero page step is a single-page axis, often reported with a default offset of zero.
-                synchronized(motionSession){((InfinityMotion)renderer.motion()).follow(xStep>0?x-.5f:0,yStep>0?y-.5f:0,time);}
+                synchronized(motionSession){((InfinityMotion)renderer.motion()).follow(scrollX?x-.5f:0f,scrollY?y-.5f:0f,time);}
                 request();
             }else applyOffset(x-.5f,y-.5f);
         }catch(Throwable error){fail(error);}});
