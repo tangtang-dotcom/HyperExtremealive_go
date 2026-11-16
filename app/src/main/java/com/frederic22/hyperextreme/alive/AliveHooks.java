@@ -74,41 +74,49 @@ public final class AliveHooks {
     private static void enableLauncherWallpaperScroll() { enableLauncherWallpaperScroll(0); }
 
     private static void enableLauncherWallpaperScroll(final int attempt) {
+        // Runs in system_server at boot. A Context can exist before ActivityManager/ContentService
+        // are registered, so getContentResolver() calls throw NullPointerException. Retry until a
+        // secure write actually succeeds, then install the reset observer.
+        boolean ok = false;
         try {
             Context c = context();
-            if (c == null) {
-                if (attempt < 30) worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), 2000);
-                return;
+            if (c != null) {
+                final android.content.ContentResolver cr = c.getContentResolver();
+                ok = applyLauncherWallpaperScroll(cr);
+                if (ok && !launcherScrollWatching) {
+                    try {
+                        ContentObserver observer = new ContentObserver(worker()) {
+                            @Override public void onChange(boolean self) { applyLauncherWallpaperScroll(cr); }
+                        };
+                        cr.registerContentObserver(
+                            android.provider.Settings.Secure.getUriFor("pref_key_wallpaper_screen_scrolled_span"),
+                            false, observer);
+                        launcherScrollWatching = true;
+                        log("Alive gesture: watching launcher wallpaper-scroll flag");
+                    } catch (Throwable observerError) { ok = false; }
+                }
             }
-            final android.content.ContentResolver cr = c.getContentResolver();
-            applyLauncherWallpaperScroll(cr);
-            if (!launcherScrollWatching) {
-                launcherScrollWatching = true;
-                ContentObserver observer = new ContentObserver(worker()) {
-                    @Override public void onChange(boolean self) { applyLauncherWallpaperScroll(cr); }
-                };
-                cr.registerContentObserver(
-                    android.provider.Settings.Secure.getUriFor("pref_key_wallpaper_screen_scrolled_span"),
-                    false, observer);
-                log("Alive gesture: watching launcher wallpaper-scroll flag");
-            }
-        } catch (Throwable error) {
-            log("Alive gesture: launcher scroll flag unavailable: " + error);
+        } catch (Throwable error) { ok = false; }
+        if (!ok && attempt < 90) {
+            worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), 2000);
+        } else if (ok) {
+            log("Alive gesture: launcher wallpaper scroll enabled at attempt " + attempt);
         }
     }
 
-    private static void applyLauncherWallpaperScroll(android.content.ContentResolver cr) {
+    private static boolean applyLauncherWallpaperScroll(android.content.ContentResolver cr) {
         try {
             int value = android.provider.Settings.Secure.getInt(cr, "pref_key_wallpaper_screen_scrolled_span", 0);
-            if (value <= 0) {
-                long now = SystemClock.uptimeMillis();
-                if (now - launcherScrollSetAt >= 2000) {
-                    launcherScrollSetAt = now;
-                    android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
-                    log("Alive gesture: re-enabled launcher wallpaper scroll (was " + value + ")");
-                }
-            }
-        } catch (Throwable error) { log("Alive gesture: set scroll failed: " + error); }
+            if (value > 0) return true;
+            long now = SystemClock.uptimeMillis();
+            if (now - launcherScrollSetAt < 2000) return false; // retry shortly
+            launcherScrollSetAt = now;
+            boolean wrote = android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
+            if (wrote) log("Alive gesture: re-enabled launcher wallpaper scroll (was " + value + ")");
+            return wrote;
+        } catch (Throwable error) {
+            return false;
+        }
     }
 
     private static Context context() {
