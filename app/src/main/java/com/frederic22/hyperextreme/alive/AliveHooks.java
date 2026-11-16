@@ -187,6 +187,16 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
+        // Kill the AOD->lockscreen flash: clamp the final applied panel brightness for a short
+        // window right after a wake so the bright lockscreen never shows at the boosted AOD backlight.
+        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$LocalDisplayDevice$2","setDisplayBrightness",chain->{
+            java.util.List<Object> args=chain.getArgs();
+            if(args.size()==2&&args.get(0) instanceof Float){
+                float b=(Float)args.get(0), c=MiuiAodPanelBrightness.clampApplied(b);
+                if(c!=b) return chain.proceed(new Object[]{c,args.get(1)});
+            }
+            return chain.proceed();
+        });
         worker().post(AliveHooks::refresh);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
             return ForcedAodSupport.active(context()) ? true : chain.proceed();
@@ -209,6 +219,7 @@ public final class AliveHooks {
                 hook(module, loader, type, method, chain -> {
                     boolean sleep = method.startsWith("goToSleep");
                     MIUI_AOD_PANEL.clear();
+                    if(!sleep) MIUI_AOD_PANEL.onWake();
                     boolean biometric = false;
                     for (Object arg : chain.getArgs()) {
                         if (arg instanceof String) {

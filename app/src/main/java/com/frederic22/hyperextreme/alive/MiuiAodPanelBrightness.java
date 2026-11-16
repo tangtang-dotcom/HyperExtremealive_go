@@ -13,6 +13,21 @@ import java.util.function.Consumer;
 
 /** Adapter for Xiaomi's full-AOD strategy, which bypasses DozeService brightness requests. */
 final class MiuiAodPanelBrightness {
+    // Wake-flash guard: when the display wakes from AOD the framework ramps brightness up from the
+    // last applied value, which here is the boosted AOD backlight, so the bright lockscreen would
+    // briefly show at AOD backlight = a flashbang. For a short window after a wake we clamp the
+    // applied panel brightness back to the awake-equivalent (normal) brightness.
+    static volatile float normalCap=Float.NaN;
+    private static volatile long wakeAt=0L;
+    private static final long WAKE_WINDOW_MS=300L;
+    static void onWake(){wakeAt=android.os.SystemClock.uptimeMillis();}
+    static float clampApplied(float brightness){
+        long now=android.os.SystemClock.uptimeMillis();
+        if(wakeAt!=0L&&now-wakeAt<=WAKE_WINDOW_MS&&Float.isFinite(normalCap)&&normalCap>0f&&brightness>normalCap)
+            return normalCap;
+        return brightness;
+    }
+
     private final WeakHashMap<Object,AodPanelHold> sessions=new WeakHashMap<>();
     private volatile boolean owned;
     private boolean watching;
@@ -78,6 +93,7 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
+            if(Float.isFinite(normal)&&normal>0f)normalCap=normal;
             float held;
             synchronized(this){
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
