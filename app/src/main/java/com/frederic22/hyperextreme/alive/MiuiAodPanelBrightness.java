@@ -19,13 +19,27 @@ final class MiuiAodPanelBrightness {
     // applied panel brightness back to the awake-equivalent (normal) brightness.
     static volatile float normalCap=Float.NaN;
     private static volatile long wakeAt=0L;
-    private static final long WAKE_WINDOW_MS=400L;
+    private static final long WAKE_WINDOW_MS=800L;
     static void onWake(){wakeAt=android.os.SystemClock.uptimeMillis();}
     static float clampApplied(float brightness){
         long now=android.os.SystemClock.uptimeMillis();
         if(wakeAt!=0L&&now-wakeAt<=WAKE_WINDOW_MS&&Float.isFinite(normalCap)&&normalCap>0f&&brightness>normalCap)
             return normalCap;
         return brightness;
+    }
+    // Clamp every float argument (brightness/sdr/backlight) of an intercepted sink call.
+    // Returns a replacement Object[] when at least one value changed, else null.
+    static Object[] clampArgs(java.util.List<Object> args,String tag){
+        int n=args.size(); boolean changed=false; Object[] out=new Object[n];
+        for(int i=0;i<n;i++){
+            Object v=args.get(i); out[i]=v;
+            if(v instanceof Float){
+                float f=(Float)v, c=clampApplied(f);
+                if(c!=f){out[i]=Float.valueOf(c);changed=true;
+                    android.util.Log.i("HyperExtremeAlive","AOD wake clamp "+tag+"["+i+"]="+f+"->"+c);}
+            }
+        }
+        return changed?out:null;
     }
 
     private final WeakHashMap<Object,AodPanelHold> sessions=new WeakHashMap<>();

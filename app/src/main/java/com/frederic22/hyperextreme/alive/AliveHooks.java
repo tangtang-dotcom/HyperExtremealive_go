@@ -187,17 +187,20 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Kill the AOD->lockscreen flash: clamp the applied panel backlight for a short window
+        // Kill the AOD->lockscreen flash: clamp the applied panel brightness for a short window
         // right after a wake so the bright lockscreen never shows at the boosted AOD backlight.
-        // PhotonicModulator.setState(I,F,F) is the per-frame sink that actually drives the panel.
+        // Hook every candidate sink; each logs the exact method/arg it clamps.
+        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$LocalDisplayDevice$2","setDisplayBrightness",chain->{
+            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"setDisplayBrightness");
+            return o!=null?chain.proceed(o):chain.proceed();
+        });
         hook(module,loader,"com.android.server.display.DisplayPowerState$PhotonicModulator","setState",chain->{
-            java.util.List<Object> args=chain.getArgs();
-            if(args.size()==3&&args.get(1) instanceof Float&&args.get(2) instanceof Float){
-                float bl=(Float)args.get(1), sd=(Float)args.get(2);
-                float cb=MiuiAodPanelBrightness.clampApplied(bl), cs=MiuiAodPanelBrightness.clampApplied(sd);
-                if(cb!=bl||cs!=sd) return chain.proceed(new Object[]{args.get(0),cb,cs});
-            }
-            return chain.proceed();
+            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"PhotonicModulator.setState");
+            return o!=null?chain.proceed(o):chain.proceed();
+        });
+        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$SurfaceControlProxy","setDisplayBrightness",chain->{
+            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"SurfaceControlProxy.setDisplayBrightness");
+            return o!=null?chain.proceed(o):chain.proceed();
         });
         worker().post(AliveHooks::refresh);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
