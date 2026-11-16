@@ -22,6 +22,9 @@ final class MiuiAodPanelBrightness {
     private static final long WAKE_WINDOW_MS=800L;
     static void onWake(){wakeAt=android.os.SystemClock.uptimeMillis();}
     static float clampApplied(float brightness){
+        // Only fraction-scale (0,1] brightness. Skip nits/DBV-sized floats (e.g. SurfaceControl ~83.57)
+        // that share the same call and must not be rewritten with a 0..1 value.
+        if(brightness<=0f||brightness>1f)return brightness;
         long now=android.os.SystemClock.uptimeMillis();
         if(wakeAt!=0L&&now-wakeAt<=WAKE_WINDOW_MS&&Float.isFinite(normalCap)&&normalCap>0f&&brightness>normalCap)
             return normalCap;
