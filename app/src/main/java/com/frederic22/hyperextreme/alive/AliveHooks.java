@@ -202,6 +202,12 @@ public final class AliveHooks {
             Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"SurfaceControlProxy.setDisplayBrightness");
             return o!=null?chain.proceed(o):chain.proceed();
         });
+        // Debounce the lockscreen auto-brightness dip: a single invalid_lux frame reports a low
+        // brightness, the next valid frame jumps back up. Hold the previous valid value.
+        hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
+            Object result=chain.proceed();
+            return chain.getArgs().size()==5?AodLockBrightness.settle(chain.getThisObject(),result):result;
+        });
         worker().post(AliveHooks::refresh);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
             return ForcedAodSupport.active(context()) ? true : chain.proceed();
