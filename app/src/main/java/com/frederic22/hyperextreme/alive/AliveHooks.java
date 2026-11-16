@@ -258,21 +258,6 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Kill the AOD->lockscreen flash: clamp the applied panel brightness for a short window
-        // right after a wake so the bright lockscreen never shows at the boosted AOD backlight.
-        // Hook every candidate sink; each logs the exact method/arg it clamps.
-        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$LocalDisplayDevice$2","setDisplayBrightness",chain->{
-            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"setDisplayBrightness");
-            return o!=null?chain.proceed(o):chain.proceed();
-        });
-        hook(module,loader,"com.android.server.display.DisplayPowerState$PhotonicModulator","setState",chain->{
-            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"PhotonicModulator.setState");
-            return o!=null?chain.proceed(o):chain.proceed();
-        });
-        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$SurfaceControlProxy","setDisplayBrightness",chain->{
-            Object[] o=MiuiAodPanelBrightness.clampArgs(chain.getArgs(),"SurfaceControlProxy.setDisplayBrightness");
-            return o!=null?chain.proceed(o):chain.proceed();
-        });
         // Debounce the lockscreen auto-brightness dip: a single invalid_lux frame reports a low
         // brightness, the next valid frame jumps back up. Hold the previous valid value.
         hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
@@ -302,7 +287,6 @@ public final class AliveHooks {
                 hook(module, loader, type, method, chain -> {
                     boolean sleep = method.startsWith("goToSleep");
                     MIUI_AOD_PANEL.clear();
-                    if(!sleep) MIUI_AOD_PANEL.onWake();
                     boolean biometric = false;
                     for (Object arg : chain.getArgs()) {
                         if (arg instanceof String) {

@@ -198,6 +198,12 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+
+        <!-- JobScheduler 执行开机壁纸回设：首帧立即尝试，失败按 1/2/4/8/16/30s 退避，不受广播时限约束。 -->
+        <service
+            android:name="com.frederic22.hyperextreme.alive.AliveBootJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 
 </manifest>

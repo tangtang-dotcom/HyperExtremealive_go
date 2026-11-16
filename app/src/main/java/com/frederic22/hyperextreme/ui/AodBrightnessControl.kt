@@ -15,8 +15,6 @@ import kotlin.math.roundToInt
 
 private val brightnessTicks = (0..20).map { it * AodBrightness.STEP }
 private fun factorText(x: Float): String = String.format(Locale.ROOT, "%.1f", x)
-internal fun brightnessLabel(value: Float): String = String.format(Locale.ROOT, "%.2f", AodBrightness.normalize(value))
-    .trimEnd('0').trimEnd('.')
 
 @Composable
 internal fun AodBrightnessControl(value: Float, onChange: (Float) -> Unit) {
@@ -46,7 +44,7 @@ internal fun AodBrightnessControl(value: Float, onChange: (Float) -> Unit) {
                 }
             }
         }
-        Text("0=不修改；越暗乘得越多：1档暗处×2.8…5档×10，亮处×1.3…×2.5；实测 AOD 约 16→230nit。",
+        Text("0=不修改；越暗乘得越多：1档暗处×2.8…5档×10，亮处×1.3…×2.5。",
             style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
     }
 }
