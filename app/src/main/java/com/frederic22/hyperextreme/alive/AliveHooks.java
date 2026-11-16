@@ -258,12 +258,6 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Debounce the lockscreen auto-brightness dip: a single invalid_lux frame reports a low
-        // brightness, the next valid frame jumps back up. Hold the previous valid value.
-        hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
-            Object result=chain.proceed();
-            return chain.getArgs().size()==5?AodLockBrightness.settle(chain.getThisObject(),result):result;
-        });
         worker().post(AliveHooks::refresh);
         worker().post(AliveHooks::enableLauncherWallpaperScroll);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{

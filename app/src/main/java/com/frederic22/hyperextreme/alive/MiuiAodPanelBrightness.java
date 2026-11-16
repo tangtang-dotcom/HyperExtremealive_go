@@ -83,11 +83,18 @@ final class MiuiAodPanelBrightness {
             // The lock-screen brightness the panel will land on after AOD is the display request's
             // screen brightness (not the doze-only mNormalBrightness, which is much lower). Cap the
             // AOD lift at that value so the hand-off has no step at all.
-            float capRef=normal;
+            float capRef=Float.NaN;
             try{
                 float screen=(Float)field(request,"screenBrightness");
                 if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;
-            }catch(ReflectiveOperationException|RuntimeException ignored){/* keep mNormalBrightness */}
+            }catch(ReflectiveOperationException|RuntimeException ignored){/* try the override next */}
+            if(!(Float.isFinite(capRef)&&capRef>0f&&capRef<=1f)){
+                try{
+                    float screen=(Float)field(request,"screenBrightnessOverride");
+                    if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;
+                }catch(ReflectiveOperationException|RuntimeException ignored){/* fall back below */}
+            }
+            if(!(Float.isFinite(capRef)&&capRef>0f&&capRef<=1f))capRef=normal;
             float held;
             synchronized(this){
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
