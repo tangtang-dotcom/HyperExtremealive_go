@@ -13,6 +13,8 @@
     <!-- 「视差效果覆盖桌面」第二步：把「背景 + 主体」合成图设为系统桌面壁纸（2026-10-21）。
          SET_WALLPAPER 是 normal 权限，安装即授予，不会弹授权框。 -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <!-- 开机解锁后自动把 Alive 壁纸组件设回来（否则 HyperOS 开机绑不上就会退默认壁纸）。 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
     <uses-feature android:glEsVersion="0x00030000" android:required="false" />
 
@@ -185,6 +187,17 @@
                 android:name="android.service.wallpaper"
                 android:resource="@xml/raster_wallpaper" />
         </service>
+
+        <!-- 开机/更新后把 Alive 壁纸组件重新设回来，只在 enabled=true 时动作（见 AliveBootReceiver）。 -->
+        <receiver
+            android:name="com.frederic22.hyperextreme.alive.AliveBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
