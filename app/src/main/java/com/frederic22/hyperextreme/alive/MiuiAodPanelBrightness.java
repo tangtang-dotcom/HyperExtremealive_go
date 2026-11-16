@@ -78,19 +78,13 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
-            boolean night=false;
-            if(controller!=null){
-                try{Object mode=field(controller,"mIsNightWakeMode");night=mode instanceof Boolean&&(Boolean)mode;}
-                catch(ReflectiveOperationException ignored){/* optional field */}
-            }
-            float nightScale=night?0.3f:1f;
             float held;
             synchronized(this){
-                String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level+" night="+night;
+                String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
                 if(!decision.equals(lastDecision)){lastDecision=decision;log.accept("AOD Xiaomi scope "+decision);}
                 if(!owned||!eligible||AodBrightness.normalize(level)==0){sessions.remove(strategy);return original;}
                 held=sessions.computeIfAbsent(strategy,key->new AodPanelHold())
-                    .brightness(nativeBrightness,normal,level,true,nightScale);
+                    .brightness(nativeBrightness,normal,level,true);
             }
             if(held==nativeBrightness||!AodPanelHold.valid(held))return original;
             Object result=copyBrightness(original,held);
