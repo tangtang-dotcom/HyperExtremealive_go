@@ -47,6 +47,8 @@ public final class AliveHooks {
         }
     }
     private static boolean aodGuardEnabled;
+    private static boolean launcherScrollWatching;
+    private static long launcherScrollSetAt;
     private static final Runnable RETRY_CONFIG=()->{readAt=-750;refresh();};
 
     private static synchronized Handler worker() {
@@ -66,20 +68,47 @@ public final class AliveHooks {
     // HyperOS MiuiHome (Flutter/Rust rewrite) gates wallpaper scrolling behind the secure flag
     // pref_key_wallpaper_screen_scrolled_span; while it is 0 the launcher never calls
     // setWallpaperOffsets, so the live wallpaper's onOffsetsChanged/gesture-follow never fires.
-    // Flip it to 1 (system_server holds WRITE_SECURE_SETTINGS) so the desktop reports offsets.
-    private static void enableLauncherWallpaperScroll() {
+    // system_server holds WRITE_SECURE_SETTINGS, so flip it to 1 and keep re-asserting: the value
+    // is absent/0 at boot and MiuiHome may rewrite it, so retry until Context is ready and watch
+    // for later resets.
+    private static void enableLauncherWallpaperScroll() { enableLauncherWallpaperScroll(0); }
+
+    private static void enableLauncherWallpaperScroll(final int attempt) {
         try {
             Context c = context();
-            if (c == null) return;
-            android.content.ContentResolver cr = c.getContentResolver();
-            int value = android.provider.Settings.Secure.getInt(cr, "pref_key_wallpaper_screen_scrolled_span", 0);
-            if (value <= 0) {
-                android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
-                log("Alive gesture: enabled launcher wallpaper scroll (was " + value + ")");
+            if (c == null) {
+                if (attempt < 30) worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), 2000);
+                return;
+            }
+            final android.content.ContentResolver cr = c.getContentResolver();
+            applyLauncherWallpaperScroll(cr);
+            if (!launcherScrollWatching) {
+                launcherScrollWatching = true;
+                ContentObserver observer = new ContentObserver(worker()) {
+                    @Override public void onChange(boolean self) { applyLauncherWallpaperScroll(cr); }
+                };
+                cr.registerContentObserver(
+                    android.provider.Settings.Secure.getUriFor("pref_key_wallpaper_screen_scrolled_span"),
+                    false, observer);
+                log("Alive gesture: watching launcher wallpaper-scroll flag");
             }
         } catch (Throwable error) {
             log("Alive gesture: launcher scroll flag unavailable: " + error);
         }
+    }
+
+    private static void applyLauncherWallpaperScroll(android.content.ContentResolver cr) {
+        try {
+            int value = android.provider.Settings.Secure.getInt(cr, "pref_key_wallpaper_screen_scrolled_span", 0);
+            if (value <= 0) {
+                long now = SystemClock.uptimeMillis();
+                if (now - launcherScrollSetAt >= 2000) {
+                    launcherScrollSetAt = now;
+                    android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
+                    log("Alive gesture: re-enabled launcher wallpaper scroll (was " + value + ")");
+                }
+            }
+        } catch (Throwable error) { log("Alive gesture: set scroll failed: " + error); }
     }
 
     private static Context context() {
