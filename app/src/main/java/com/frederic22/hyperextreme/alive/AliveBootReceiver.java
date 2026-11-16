@@ -48,14 +48,18 @@ public final class AliveBootReceiver extends BroadcastReceiver {
         }
     }
 
+    private static boolean probeWarned;
+
     private static boolean hasStaticWallpaper(WallpaperManager manager){
         try{
             android.os.ParcelFileDescriptor file=manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM);
             if(file==null)return false;
             file.close();
             return true;
-        }catch(Throwable ignored){
-            // Query not permitted: treat as no static file so the restore path still works.
+        }catch(Throwable error){
+            // If the probe is not permitted we must know: the guard silently failing open would
+            // let the boot restore override a user-picked static wallpaper.
+            if(!probeWarned){probeWarned=true;Log.w(Protocol.TAG,"Alive boot: static-wallpaper probe unavailable ("+error+")");}
             return false;
         }
     }

@@ -20,6 +20,7 @@ import android.util.Log;
 public final class AliveBootJobService extends JobService {
     private static final int JOB_ID=0x0B007;
     private static final long[] RETRY_MS={1000L,2000L,4000L,8000L,16000L,30000L};
+    private static final android.os.Handler MAIN=new android.os.Handler(android.os.Looper.getMainLooper());
 
     static void schedule(Context context){schedule(context,0L,0);}
 
@@ -67,13 +68,16 @@ public final class AliveBootJobService extends JobService {
                 // dropped as "job still running" on some HyperOS builds.
                 final long delay=RETRY_MS[attempt+1];
                 final int next=attempt+1;
-                new android.os.Handler(android.os.Looper.getMainLooper())
-                    .postDelayed(()->schedule(app,delay,next),120L);
+                MAIN.postDelayed(()->schedule(app,delay,next),120L);
             }
         },"AliveBootJob").start();
         return true;
     }
 
     @Override
-    public boolean onStopJob(JobParameters params){return false;}
+    public boolean onStopJob(JobParameters params){
+        // Let JobScheduler reschedule with its own backoff: a run stopped mid-way must still
+        // re-assert the wallpaper. The shared JOB_ID replaces, it never duplicates.
+        return true;
+    }
 }

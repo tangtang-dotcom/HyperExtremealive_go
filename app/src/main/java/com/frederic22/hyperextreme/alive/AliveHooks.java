@@ -101,9 +101,9 @@ public final class AliveHooks {
         if (!ok && attempt < 40) {
             long delay = attempt < 5 ? 1000L : (attempt < 15 ? 3000L : 8000L);
             worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), delay);
-        } else if (ok) {
-            log("Alive gesture: launcher wallpaper scroll enabled at attempt " + attempt);
         }
+        // A successful reconcile needs no announcement: applyLauncherWallpaperScroll already
+        // logs whenever a value is actually written, and this path runs on every config change.
     }
 
     static boolean launcherScrollEnabled() { return cached.getBoolean("launcher_scroll", false); }
@@ -262,7 +262,7 @@ public final class AliveHooks {
         // value the lockscreen will land on (auto-brightness included).
         hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
             Object state=chain.proceed();
-            if(!chain.getArgs().isEmpty())ScreenBrightnessRef.observe(chain.getArgs().get(0),state);
+            ScreenBrightnessRef.observe(chain.getArgs(),state);
             return state;
         });
         worker().post(AliveHooks::refresh);

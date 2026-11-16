@@ -84,17 +84,19 @@ final class MiuiAodPanelBrightness {
             // DisplayBrightnessController observation is authoritative (auto-brightness output);
             // request.screenBrightness is only the user setting, so it is just a fallback.
             float capRef=ScreenBrightnessRef.get();
-            try{
-                float screen=(Float)field(request,"screenBrightness");
-                if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;
-            }catch(ReflectiveOperationException|RuntimeException ignored){/* try the override next */}
-            if(!(Float.isFinite(capRef)&&capRef>0f&&capRef<=1f)){
+            if(!AodPanelHold.valid(capRef)){ // the user setting is only a fallback, never a override
+                try{
+                    float screen=(Float)field(request,"screenBrightness");
+                    if(AodPanelHold.valid(screen))capRef=screen;
+                }catch(ReflectiveOperationException|RuntimeException ignored){/* try the override next */}
+            }
+            if(!AodPanelHold.valid(capRef)){
                 try{
                     float screen=(Float)field(request,"screenBrightnessOverride");
-                    if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;
+                    if(AodPanelHold.valid(screen))capRef=screen;
                 }catch(ReflectiveOperationException|RuntimeException ignored){/* fall back below */}
             }
-            if(!(Float.isFinite(capRef)&&capRef>0f&&capRef<=1f))capRef=normal;
+            if(!AodPanelHold.valid(capRef))capRef=normal;
             float held;
             synchronized(this){
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
