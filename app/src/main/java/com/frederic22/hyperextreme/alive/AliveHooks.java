@@ -106,7 +106,7 @@ public final class AliveHooks {
         }
     }
 
-    static boolean launcherScrollEnabled() { return cached.getBoolean("launcher_scroll", true); }
+    static boolean launcherScrollEnabled() { return cached.getBoolean("launcher_scroll", false); }
 
     private static boolean applyLauncherWallpaperScroll(android.content.ContentResolver cr) {
         try {

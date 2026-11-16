@@ -17,7 +17,9 @@ final class ScreenBrightnessRef {
     static void observe(Object request,Object state){
         if(request==null||state==null)return;
         try{
-            if(policy(request)==1)return; // DOZE: not a lockscreen target
+            // Only the full-bright policy is the lockscreen/home target. DOZE/DIM/OFF values are
+            // lower or zero and must not become the AOD ceiling.
+            if(policy(request)!=2)return;
             float brightness=(Float)state.getClass().getMethod("getBrightness").invoke(state);
             if(Float.isFinite(brightness)&&brightness>0f&&brightness<=1f)value=brightness;
         }catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){

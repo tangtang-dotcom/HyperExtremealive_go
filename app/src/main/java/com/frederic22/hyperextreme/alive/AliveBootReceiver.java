@@ -28,23 +28,34 @@ public final class AliveBootReceiver extends BroadcastReceiver {
         try {
             if(!Config.prefs(context).getBoolean("enabled",false))return false;
             WallpaperManager manager=WallpaperManager.getInstance(context);
-            WallpaperInfo info=manager==null?null:manager.getWallpaperInfo();
+            if(manager==null)return false;
+            WallpaperInfo info=manager.getWallpaperInfo();
             if(info==null){
                 // A null WallpaperInfo also covers a user-set static image. Only the genuine
                 // "no wallpaper at all" fallback should be re-asserted; if a static file exists
                 // the user has made a choice and we must leave it alone.
-                boolean staticFile=false;
-                try{
-                    android.os.ParcelFileDescriptor file=manager==null?null:manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM);
-                    staticFile=file!=null;
-                    if(file!=null)file.close();
-                }catch(Throwable ignored){/* query not permitted: treat as no static file */ }
-                return !staticFile;
+                return !hasStaticWallpaper(manager);
             }
             String pkg=info.getComponent().getPackageName();
-            return context.getPackageName().equals(pkg)||"com.miui.miwallpaper".equals(pkg);
+            if(context.getPackageName().equals(pkg))return true; // our own live wallpaper
+            // com.miui.miwallpaper also renders static images for MIUI; a static file means the
+            // user picked a picture, so do not override it.
+            if("com.miui.miwallpaper".equals(pkg))return !hasStaticWallpaper(manager);
+            return false; // another live wallpaper: not ours
         }catch(Throwable unavailable){
             Log.w(Protocol.TAG,"Alive boot: cannot inspect wallpaper ("+unavailable+")");
+            return false;
+        }
+    }
+
+    private static boolean hasStaticWallpaper(WallpaperManager manager){
+        try{
+            android.os.ParcelFileDescriptor file=manager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM);
+            if(file==null)return false;
+            file.close();
+            return true;
+        }catch(Throwable ignored){
+            // Query not permitted: treat as no static file so the restore path still works.
             return false;
         }
     }
