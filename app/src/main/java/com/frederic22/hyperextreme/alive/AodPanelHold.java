@@ -5,7 +5,7 @@ package com.frederic22.hyperextreme.alive;
  * The input is the live ambient-computed doze brightness (real-time), so this follows ambient
  * every frame. Slider level 1..5 scales the aggressiveness:
  *   - dark end multiplier   = 1 + 1.8*level   (level 5 -> x10, level 1 -> x2.8)
- *   - bright end multiplier = 1 + 0.16*level  (level 5 -> x1.8, level 1 -> x1.16)
+ *   - bright end multiplier = 1 + 0.30*level  (level 5 -> x2.5, level 1 -> x1.30)
  * Output is monotonic in input (never dimmer than stock); only the panel's physical 1.0 caps it.
  */
 final class AodPanelHold {
@@ -23,7 +23,7 @@ final class AodPanelHold {
         if(!valid(requested))return requested;
         float lv=AodBrightness.normalize(level);
         float lowMax=AodBrightness.aodDarkFactor(lv);    // dark-end multiplier (lv5 -> x10)
-        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x1.8)
+        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x2.5)
         float out;
         if(requested<=DARK_R){
             out=requested*lowMax;                       // dim: big boost
