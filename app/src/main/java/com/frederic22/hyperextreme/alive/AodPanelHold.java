@@ -7,7 +7,9 @@ package com.frederic22.hyperextreme.alive;
  *   - dark end multiplier   = 1 + 1.8*level   (level 5 -> x10, level 1 -> x2.8)
  *   - bright end multiplier = 1 + 0.30*level  (level 5 -> x2.5, level 1 -> x1.30)
  * The result is finally capped at the live screen/lock brightness, so AOD can never out-shine
- * the lockscreen it hands over to.
+ * the lockscreen it hands over to — except that the cap never dims below the stock doze value:
+ * on a dark night the lockscreen can sit under the doze brightness, and there AOD simply
+ * returns to stock (no boost, no step).
  */
 final class AodPanelHold {
     // Below DARK_R the full dark multiplier applies; above BRIGHT_R the small bright multiplier does.
@@ -34,9 +36,15 @@ final class AodPanelHold {
         }
         if(out>1f)out=1f;               // panel physical ceiling
         if(out<requested)out=requested; // monotonic: never dimmer than the stock doze value
-        // `capRef` is the live screen/lock brightness the panel will land on after AOD. The cap is
-        // applied last and may override the monotonic rule: "never out-shine the lockscreen" wins.
-        if(valid(capRef))out=Math.min(out,Math.min(1f,capRef));
+        // `capRef` is the live screen/lock brightness the panel will land on after AOD. The cap
+        // is applied last and may override the monotonic rule ("never out-shine the lockscreen"
+        // wins), but its floor is the stock doze value: at night the lockscreen can be dimmer
+        // than doze, and there the AOD lift is simply neutralized back to stock.
+        if(valid(capRef)){
+            float cap=Math.min(1f,capRef);
+            if(cap<requested)cap=requested;
+            out=Math.min(out,cap);
+        }
         return out;
     }
 
