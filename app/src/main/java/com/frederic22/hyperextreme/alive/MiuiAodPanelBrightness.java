@@ -13,8 +13,8 @@ import java.util.function.Consumer;
 
 /** Adapter for Xiaomi's full-AOD strategy, which bypasses DozeService brightness requests. */
 final class MiuiAodPanelBrightness {
-    // (ui60) The AOD lift lives entirely in the doze strategy. This sink layer must stay
-    // pass-through: it must never rewrite brightness/sdr/backlight values of other subsystems.
+    // The AOD lift is computed here and applied by cloning the DisplayBrightnessState only.
+    // Thermal/power/HBM caps downstream still run; no other subsystem's values are touched.
     private final AodPanelHold hold=new AodPanelHold();
     private volatile boolean owned;
     private boolean watching;
@@ -80,10 +80,10 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
-            // The lock-screen brightness the panel will land on after AOD is the display request's
-            // screen brightness (not the doze-only mNormalBrightness, which is much lower). Cap the
-            // AOD lift at that value so the hand-off has no step at all.
-            float capRef=Float.NaN;
+            // Cap the AOD lift at the brightness the lockscreen will actually land on. The
+            // DisplayBrightnessController observation is authoritative (auto-brightness output);
+            // request.screenBrightness is only the user setting, so it is just a fallback.
+            float capRef=ScreenBrightnessRef.get();
             try{
                 float screen=(Float)field(request,"screenBrightness");
                 if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;

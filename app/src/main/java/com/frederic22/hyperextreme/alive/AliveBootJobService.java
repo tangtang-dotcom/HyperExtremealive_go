@@ -61,7 +61,15 @@ public final class AliveBootJobService extends JobService {
                 Log.i(Protocol.TAG,"Alive boot job #"+attempt+" failed: "+error);
             }
             jobFinished(params,false);
-            if(!ok&&attempt+1<RETRY_MS.length)schedule(app,RETRY_MS[attempt+1],attempt+1);
+            if(!ok&&attempt+1<RETRY_MS.length){
+                // Re-schedule from the main looper after jobFinished so JobScheduler has finished
+                // tearing down this run; scheduling the same job id from inside onStartJob can be
+                // dropped as "job still running" on some HyperOS builds.
+                final long delay=RETRY_MS[attempt+1];
+                final int next=attempt+1;
+                new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(()->schedule(app,delay,next),120L);
+            }
         },"AliveBootJob").start();
         return true;
     }

@@ -6,7 +6,8 @@ package com.frederic22.hyperextreme.alive;
  * every frame. Slider level 1..5 scales the aggressiveness:
  *   - dark end multiplier   = 1 + 1.8*level   (level 5 -> x10, level 1 -> x2.8)
  *   - bright end multiplier = 1 + 0.30*level  (level 5 -> x2.5, level 1 -> x1.30)
- * Output is monotonic in input (never dimmer than stock); only the panel's physical 1.0 caps it.
+ * The result is finally capped at the live screen/lock brightness, so AOD can never out-shine
+ * the lockscreen it hands over to.
  */
 final class AodPanelHold {
     // Below DARK_R the full dark multiplier applies; above BRIGHT_R the small bright multiplier does.
@@ -15,7 +16,7 @@ final class AodPanelHold {
 
     static boolean valid(float value){return Float.isFinite(value)&&value>0&&value<=1;}
 
-    float brightness(float requested,float normal,float level,boolean eligible){
+    float brightness(float requested,float capRef,float level,boolean eligible){
         if(!eligible||AodBrightness.normalize(level)==0)return requested;
         if(!valid(requested))return requested;
         float lv=AodBrightness.normalize(level);
@@ -31,12 +32,11 @@ final class AodPanelHold {
             float u=(requested-DARK_R)/(BRIGHT_R-DARK_R);
             out=oLo+(oHi-oLo)*u;                        // smooth monotonic bridge
         }
-        if(out>1f)out=1f;           // only the panel's physical ceiling
-        // `normal` is the screen/lock brightness the panel will land on after AOD. Never exceed
-        // it, otherwise the AOD->lockscreen hand-off has a visible step (the "flashbang").
-        float cap=valid(normal)?Math.min(1f,normal):1f;
-        if(out>cap)out=cap;
-        if(out<requested)out=requested; // monotonic: never dimmer than the live value
+        if(out>1f)out=1f;               // panel physical ceiling
+        if(out<requested)out=requested; // monotonic: never dimmer than the stock doze value
+        // `capRef` is the live screen/lock brightness the panel will land on after AOD. The cap is
+        // applied last and may override the monotonic rule: "never out-shine the lockscreen" wins.
+        if(valid(capRef))out=Math.min(out,Math.min(1f,capRef));
         return out;
     }
 

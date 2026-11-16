@@ -258,6 +258,13 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
+        // Read-only observation of the real non-doze brightness: gives the AOD ceiling the exact
+        // value the lockscreen will land on (auto-brightness included).
+        hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
+            Object state=chain.proceed();
+            if(!chain.getArgs().isEmpty())ScreenBrightnessRef.observe(chain.getArgs().get(0),state);
+            return state;
+        });
         worker().post(AliveHooks::refresh);
         worker().post(AliveHooks::enableLauncherWallpaperScroll);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
