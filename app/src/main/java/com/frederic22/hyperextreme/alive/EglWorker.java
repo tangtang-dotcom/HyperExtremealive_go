@@ -388,7 +388,8 @@ final class EglWorker {
             // Keep the scene/placement transition, but never boost the restored lock/home.
             // The display wake can precede the asynchronous scene signal.
             boolean ambient=state.mode==0&&(preview||!requestedInteractive);
-            float exposure=preview?AodBrightness.frameGain(options.brightness,aodWeight,ambient):1f; // live settings preview tracks the slider; real AOD lift stays on the panel.
+            float previewFactor=AodBrightness.aodBrightFactor(AodBrightness.normalize(options.brightness));
+            float exposure=preview&&ambient?1f+(previewFactor-1f)*aodWeight:1f; // preview uses the same AOD factor curve; real AOD lift stays on the panel.
             if(renderer.frameReady())presentation.render(exposure,
                 translate?presentationX*aodWeight:0,translate?presentationY*aodWeight:0);
             int glError=GLES30.glGetError();if(glError!=GLES30.GL_NO_ERROR)throw new IllegalStateException("GL error 0x"+Integer.toHexString(glError));

@@ -98,8 +98,9 @@ public final class AliveHooks {
                 }
             }
         } catch (Throwable error) { ok = false; }
-        if (!ok && attempt < 90) {
-            worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), 2000);
+        if (!ok && attempt < 40) {
+            long delay = attempt < 5 ? 1000L : (attempt < 15 ? 3000L : 8000L);
+            worker().postDelayed(() -> enableLauncherWallpaperScroll(attempt + 1), delay);
         } else if (ok) {
             log("Alive gesture: launcher wallpaper scroll enabled at attempt " + attempt);
         }
