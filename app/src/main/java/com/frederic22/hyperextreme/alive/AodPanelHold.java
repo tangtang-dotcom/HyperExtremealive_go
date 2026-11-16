@@ -2,18 +2,19 @@ package com.frederic22.hyperextreme.alive;
 
 /**
  * Adds a fixed absolute brightness step (in backlight DBV) on top of the live, ambient-driven
- * doze brightness. The offset is a user-chosen amount (level 1..5 -> +100..+500 DBV), applied
+ * doze brightness. The offset is a user-chosen amount (level 1..5 -> +800..+4000 DBV), applied
  * in real time every time the display strategy recomputes brightness, so AOD keeps tracking
  * ambient light while being uniformly lifted.
  *
- * No soft ceiling: only the panel's physical range (0..1) is enforced. You dial brightness
- * with the level yourself; higher levels can exceed the normal-screen reference on purpose.
+ * This is the "strong" build: level 5 approaches the panel HBM ceiling (~0.25 / ~600 nits),
+ * enough to be usable outdoors. No soft ceiling beyond the panel's physical 1.0; you dial the
+ * level yourself. High levels are bright and increase burn-in/power risk.
  */
 final class AodPanelHold {
     // Backlight register full scale minus one (~16383-1); turns a DBV step into a brightness fraction.
     private static final float DBV_MAX = 16382f;
-    // Each +1.0 on the slider adds this many DBV (level 5 -> +500 DBV).
-    private static final float DBV_PER_LEVEL = 100f;
+    // Each +1.0 on the slider adds this many DBV (level 5 -> +4000 DBV ~ near the panel HBM ceiling; level 1 -> +800).
+    private static final float DBV_PER_LEVEL = 800f;
 
     // Stateless; kept for API parity.
     void clear(){}
