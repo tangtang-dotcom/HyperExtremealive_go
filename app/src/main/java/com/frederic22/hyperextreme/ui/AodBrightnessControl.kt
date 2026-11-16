@@ -24,7 +24,7 @@ internal fun AodBrightnessControl(value: Float, onChange: (Float) -> Unit) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween) {
             Text("息屏亮度", style = MiuixTheme.textStyles.body1)
-            Text(if(level == 0f) "0 · 不修改" else "${brightnessLabel(level)}×",
+            Text(if(level == 0f) "0 · 不修改" else "+${(level * 100f).roundToInt()} 背光级",
                 style = MiuixTheme.textStyles.body1, modifier = Modifier.testTag("aod-brightness-value"))
         }
         Slider(value = level, valueRange = 0f..5f, steps = 19,
@@ -35,7 +35,7 @@ internal fun AodBrightnessControl(value: Float, onChange: (Float) -> Unit) {
             for(tick in 0..5) Text(tick.toString(), style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
         }
-        Text("0 保留系统原始息屏亮度，每格 0.25 倍。", style = MiuixTheme.textStyles.body2,
+        Text("0 保留系统原始息屏亮度；每格约 +25 背光级（档 5 ≈ +500，暗处更明显）。", style = MiuixTheme.textStyles.body2,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
     }
 }
