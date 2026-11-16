@@ -80,16 +80,24 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
+            // The lock-screen brightness the panel will land on after AOD is the display request's
+            // screen brightness (not the doze-only mNormalBrightness, which is much lower). Cap the
+            // AOD lift at that value so the hand-off has no step at all.
+            float capRef=normal;
+            try{
+                float screen=(Float)field(request,"screenBrightness");
+                if(Float.isFinite(screen)&&screen>0f&&screen<=1f)capRef=screen;
+            }catch(ReflectiveOperationException|RuntimeException ignored){/* keep mNormalBrightness */}
             float held;
             synchronized(this){
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
                 if(!decision.equals(lastDecision)){lastDecision=decision;log.accept("AOD Xiaomi scope "+decision);}
                 if(!owned||!eligible||AodBrightness.normalize(level)==0){return original;}
-                held=hold.brightness(nativeBrightness,normal,level,true);
+                held=hold.brightness(nativeBrightness,capRef,level,true);
             }
             if(held==nativeBrightness||!AodPanelHold.valid(held))return original;
             Object result=copyBrightness(original,held);
-            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" held="+held+" level="+level);
+            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" cap="+capRef+" held="+held+" level="+level);
             return result;
         }catch(ReflectiveOperationException|RuntimeException|LinkageError unavailable){
             clear();

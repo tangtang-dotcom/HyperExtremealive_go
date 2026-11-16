@@ -35,6 +35,10 @@ final class AodPanelHold {
             out=oLo+(oHi-oLo)*u;                        // smooth monotonic bridge
         }
         if(out>1f)out=1f;           // only the panel's physical ceiling
+        // `normal` is the screen/lock brightness the panel will land on after AOD. Never exceed
+        // it, otherwise the AOD->lockscreen hand-off has a visible step (the "flashbang").
+        float cap=valid(normal)?Math.min(1f,normal):1f;
+        if(out>cap)out=cap;
         if(out<requested)out=requested; // monotonic: never dimmer than the live value
         return out;
     }
