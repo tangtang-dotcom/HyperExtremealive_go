@@ -49,6 +49,7 @@ public final class AliveHooks {
     private static boolean aodGuardEnabled;
     private static boolean launcherScrollWatching;
     private static long launcherScrollSetAt;
+    private static long launcherScrollEnsureAt;
     private static final Runnable RETRY_CONFIG=()->{readAt=-750;refresh();};
 
     private static synchronized Handler worker() {
@@ -104,15 +105,18 @@ public final class AliveHooks {
         }
     }
 
+    static boolean launcherScrollEnabled() { return cached.getBoolean("launcher_scroll", true); }
+
     private static boolean applyLauncherWallpaperScroll(android.content.ContentResolver cr) {
         try {
+            int want = launcherScrollEnabled() ? 1 : 0;
             int value = android.provider.Settings.Secure.getInt(cr, "pref_key_wallpaper_screen_scrolled_span", 0);
-            if (value > 0) return true;
+            if (value == want) return true;
             long now = SystemClock.uptimeMillis();
             if (now - launcherScrollSetAt < 2000) return false; // retry shortly
             launcherScrollSetAt = now;
-            boolean wrote = android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", 1);
-            if (wrote) log("Alive gesture: re-enabled launcher wallpaper scroll (was " + value + ")");
+            boolean wrote = android.provider.Settings.Secure.putInt(cr, "pref_key_wallpaper_screen_scrolled_span", want);
+            if (wrote) log("Alive gesture: launcher wallpaper scroll -> " + want + " (was " + value + ")");
             return wrote;
         } catch (Throwable error) {
             return false;
@@ -153,6 +157,8 @@ public final class AliveHooks {
                         @Override public void onChange(boolean selfChange) {
                             readAt = -750;refreshFailures=0;
                             refresh();
+                            launcherScrollSetAt = 0;
+                            worker().post(() -> enableLauncherWallpaperScroll(0));
                         }
                     });
                 observing = true;
@@ -162,6 +168,14 @@ public final class AliveHooks {
             if(systemAdapter)MIUI_AOD_PANEL.refresh(c,worker());
             retry=result==null||cached.getBoolean("configured",false)&&!cached.getBoolean("enabled",false);
             LiquidKeyguardHooks.config(cached);
+            if(cached.getBoolean("launcher_scroll",true)){
+                long ens=SystemClock.uptimeMillis();
+                if(ens-launcherScrollEnsureAt>2000){
+                    launcherScrollEnsureAt=ens;
+                    final Context cc=c;
+                    worker().post(()->{ launcherScrollSetAt=0; applyLauncherWallpaperScroll(cc.getContentResolver()); });
+                }
+            }
         } catch (RuntimeException error) {
             cached = Bundle.EMPTY;
             LiquidKeyguardHooks.config(cached);
