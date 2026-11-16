@@ -98,21 +98,40 @@ final class MiuiAodPanelBrightness {
         }
     }
 
+    private static final java.util.WeakHashMap<Class<?>,Object[]> COPY_METHODS=new java.util.WeakHashMap<>();
+
     static Object copyBrightness(Object original,float brightness) throws ReflectiveOperationException {
         // Clone every native field; downstream thermal/power caps and brightness reasons remain.
         Class<?> state=original.getClass();
-        Class<?> builder=Class.forName(state.getName()+"$Builder",false,state.getClassLoader());
-        Object copy=builder.getMethod("from",state).invoke(null,original);
-        builder.getMethod("setBrightness",float.class).invoke(copy,brightness);
-        return builder.getMethod("build").invoke(copy);
+        Object[] methods;
+        synchronized(COPY_METHODS){
+            methods=COPY_METHODS.get(state);
+            if(methods==null){
+                Class<?> builder=Class.forName(state.getName()+"$Builder",false,state.getClassLoader());
+                methods=new Object[]{builder.getMethod("from",state),builder.getMethod("setBrightness",float.class),builder.getMethod("build")};
+                COPY_METHODS.put(state,methods);
+            }
+        }
+        Object copy=((java.lang.reflect.Method)methods[0]).invoke(null,original);
+        ((java.lang.reflect.Method)methods[1]).invoke(copy,brightness);
+        return ((java.lang.reflect.Method)methods[2]).invoke(copy);
     }
+
+    private static final java.util.WeakHashMap<Class<?>,java.util.HashMap<String,Field>> FIELDS=new java.util.WeakHashMap<>();
 
     private static Object field(Object host,String name) throws ReflectiveOperationException {
         if(host==null)return null;
-        for(Class<?> type=host.getClass();type!=null;type=type.getSuperclass()){
-            try{Field field=type.getDeclaredField(name);field.setAccessible(true);return field.get(host);}
-            catch(NoSuchFieldException missing){/* Check the superclass. */}
+        Class<?> type=host.getClass();
+        synchronized(FIELDS){
+            java.util.HashMap<String,Field> map=FIELDS.get(type);
+            if(map==null){map=new java.util.HashMap<>();FIELDS.put(type,map);}
+            Field cached=map.get(name);
+            if(cached!=null)return cached.get(host);
+            for(Class<?> scan=type;scan!=null;scan=scan.getSuperclass()){
+                try{Field found=scan.getDeclaredField(name);found.setAccessible(true);map.put(name,found);return found.get(host);}
+                catch(NoSuchFieldException missing){/* Check the superclass. */}
+            }
+            throw new NoSuchFieldException(name);
         }
-        throw new NoSuchFieldException(name);
     }
 }

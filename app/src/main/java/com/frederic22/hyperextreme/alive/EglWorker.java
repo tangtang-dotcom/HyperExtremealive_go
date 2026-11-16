@@ -320,7 +320,7 @@ final class EglWorker {
         final boolean scrollX=Float.isFinite(x)&&xStep!=0f;
         final boolean scrollY=Float.isFinite(y)&&yStep!=0f;
         long nowMs=SystemClock.uptimeMillis();
-        if(nowMs-lastLauncherOffsetLogMs>=1000){lastLauncherOffsetLogMs=nowMs;
+        if((scrollX||scrollY)&&nowMs-lastLauncherOffsetLogMs>=2000){lastLauncherOffsetLogMs=nowMs;
             Log.i(Protocol.TAG,"launcher offset x="+x+" y="+y+" xStep="+xStep+" scroll="+scrollX);}
         handler.post(()->{try{
             if(renderer==null)return;
