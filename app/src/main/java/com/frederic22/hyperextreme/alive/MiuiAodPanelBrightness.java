@@ -19,7 +19,7 @@ final class MiuiAodPanelBrightness {
     // applied panel brightness back to the awake-equivalent (normal) brightness.
     static volatile float normalCap=Float.NaN;
     private static volatile long wakeAt=0L;
-    private static final long WAKE_WINDOW_MS=300L;
+    private static final long WAKE_WINDOW_MS=400L;
     static void onWake(){wakeAt=android.os.SystemClock.uptimeMillis();}
     static float clampApplied(float brightness){
         long now=android.os.SystemClock.uptimeMillis();

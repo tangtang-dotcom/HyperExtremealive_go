@@ -187,13 +187,15 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Kill the AOD->lockscreen flash: clamp the final applied panel brightness for a short
-        // window right after a wake so the bright lockscreen never shows at the boosted AOD backlight.
-        hook(module,loader,"com.android.server.display.LocalDisplayAdapter$LocalDisplayDevice$2","setDisplayBrightness",chain->{
+        // Kill the AOD->lockscreen flash: clamp the applied panel backlight for a short window
+        // right after a wake so the bright lockscreen never shows at the boosted AOD backlight.
+        // PhotonicModulator.setState(I,F,F) is the per-frame sink that actually drives the panel.
+        hook(module,loader,"com.android.server.display.DisplayPowerState$PhotonicModulator","setState",chain->{
             java.util.List<Object> args=chain.getArgs();
-            if(args.size()==2&&args.get(0) instanceof Float){
-                float b=(Float)args.get(0), c=MiuiAodPanelBrightness.clampApplied(b);
-                if(c!=b) return chain.proceed(new Object[]{c,args.get(1)});
+            if(args.size()==3&&args.get(1) instanceof Float&&args.get(2) instanceof Float){
+                float bl=(Float)args.get(1), sd=(Float)args.get(2);
+                float cb=MiuiAodPanelBrightness.clampApplied(bl), cs=MiuiAodPanelBrightness.clampApplied(sd);
+                if(cb!=bl||cs!=sd) return chain.proceed(new Object[]{args.get(0),cb,cs});
             }
             return chain.proceed();
         });
