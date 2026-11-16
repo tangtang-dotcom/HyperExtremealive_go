@@ -13,9 +13,17 @@ import java.util.WeakHashMap;
  */
 final class AodLockBrightness {
     private static final float MIN_DIP = 0.02f; // ignore sub-2% noise
+    private static final long WAKE_GRACE_MS = 1500L; // never debounce the AOD->lockscreen handoff
     private static final WeakHashMap<Object,Float> LAST_VALID = new WeakHashMap<>();
+    private static volatile long wakeAt = 0L;
 
     private AodLockBrightness(){}
+
+    /** Called from the PowerManagerService wake hook: the AOD->lockscreen frames must pass through. */
+    static void onWake(){
+        wakeAt = android.os.SystemClock.uptimeMillis();
+        synchronized(LAST_VALID){ LAST_VALID.clear(); }
+    }
 
     static Object settle(Object controller,Object state){
         if(state==null)return null;
@@ -27,6 +35,10 @@ final class AodLockBrightness {
             float lux=(Float)event.getClass().getMethod("getLux").invoke(event);
             float target=(Float)state.getClass().getMethod("getBrightness").invoke(state);
             if(!Float.isFinite(target)||target<=0f||target>1f)return state;
+            if(wakeAt!=0L&&android.os.SystemClock.uptimeMillis()-wakeAt<WAKE_GRACE_MS){
+                synchronized(LAST_VALID){ LAST_VALID.put(controller,target); }
+                return state; // AOD->lockscreen: hand the system target straight through
+            }
             synchronized(LAST_VALID){
                 if(!Float.isNaN(lux)){                 // valid frame: remember it and pass through
                     LAST_VALID.put(controller,target);

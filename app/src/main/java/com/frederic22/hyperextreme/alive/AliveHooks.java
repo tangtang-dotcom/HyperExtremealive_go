@@ -287,6 +287,7 @@ public final class AliveHooks {
                 hook(module, loader, type, method, chain -> {
                     boolean sleep = method.startsWith("goToSleep");
                     MIUI_AOD_PANEL.clear();
+                    if(!sleep)AodLockBrightness.onWake();
                     boolean biometric = false;
                     for (Object arg : chain.getArgs()) {
                         if (arg instanceof String) {
