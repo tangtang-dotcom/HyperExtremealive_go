@@ -38,10 +38,10 @@ final class AodPanelHold {
         return out;
     }
 
-    /** 0..1 comfort weight from the live AOD ambient lux: 1 lux ~0.20, 100 lux ~0.62, 3000+ lux = 1.0. */
+    /** 0..1 comfort weight from the live AOD ambient lux: 1 lux ~0.21, 100 lux ~0.71, 1000+ lux = 1.0 (full outdoor). */
     private static float ambientGain(float lux){
         if(!Float.isFinite(lux)||lux<0f)return 1f;
-        float t=(float)(Math.log10(lux+1.0)/3.5);
+        float t=(float)(Math.log10(lux+1.0)/3.0);
         if(t<0f)t=0f; else if(t>1f)t=1f;
         return 0.12f+0.88f*t;
     }
