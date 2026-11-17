@@ -15,6 +15,9 @@ final class AodPanelHold {
     // Below DARK_R the full dark multiplier applies; above BRIGHT_R the small bright multiplier does.
     private static final float DARK_R = 0.02f;
     private static final float BRIGHT_R = 0.15f;
+    // ~840 nit hard ceiling: even if the whole cap chain fails, the AOD must never blast full
+    // panel power. Applied after the lockscreen/outdoor cap, so a stricter cap still wins.
+    private static final float ABS_CAP = 0.35f;
 
     static boolean valid(float value){return Float.isFinite(value)&&value>0&&value<=1;}
 
@@ -45,6 +48,7 @@ final class AodPanelHold {
             if(cap<requested)cap=requested;
             out=Math.min(out,cap);
         }
+        if(out>ABS_CAP)out=ABS_CAP; // hard ceiling for a failed/absent cap chain
         return out;
     }
 

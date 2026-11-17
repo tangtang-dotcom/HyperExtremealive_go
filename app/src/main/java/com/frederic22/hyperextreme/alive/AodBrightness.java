@@ -12,9 +12,10 @@ public final class AodBrightness {
     private AodBrightness(){}
     public static float normalize(float value){return Float.isFinite(value)?Math.max(MIN,Math.min(MAX,value)):DEFAULT;}
     // AOD adaptive-lift multipliers, shared by the panel hook (AodPanelHold) and the settings UI,
-    // so the slider table always matches what actually happens to the panel.
-    public static float aodDarkFactor(float level){return 1f+1.8f*normalize(level);}    // dim AOD: x2.8 (lv1) .. x10 (lv5)
-    public static float aodBrightFactor(float level){return 1f+0.30f*normalize(level);}  // bright AOD: x1.30 .. x2.5
+    // so the slider table always matches what actually happens to the panel. Large dark-end
+    // multipliers are safe: the lockscreen/outdoor cap (see AodPanelHold) brings them back down.
+    public static float aodDarkFactor(float level){return 1f+5.0f*normalize(level);}    // dim AOD: x6 (lv1) .. x26 (lv5)
+    public static float aodBrightFactor(float level){return 1f+1.4f*normalize(level);}  // bright AOD: x2.4 .. x8
     public static float load(Context context){return normalize(Config.prefs(context).getFloat(KEY,DEFAULT));}
     public static void save(Context context,float value){
         Config.prefs(context).edit().putFloat(KEY,normalize(value)).apply();
