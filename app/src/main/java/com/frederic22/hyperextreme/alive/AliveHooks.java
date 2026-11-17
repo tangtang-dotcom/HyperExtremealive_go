@@ -270,6 +270,14 @@ public final class AliveHooks {
             WakeGlide.step(chain.getThisObject());
             return result;
         });
+        hook(module,loader,"android.view.SurfaceControl","setDisplayBrightness",chain->{
+            Object[] a=chain.getArgs().toArray();
+            if(a.length>=2&&a[1] instanceof Float){
+                float out=WakeGlide.sink(a[0],(Float)a[1]);
+                if(out!=(Float)a[1]){a[1]=out;return chain.proceed(a);}
+            }
+            return chain.proceed();
+        });
         worker().post(AliveHooks::refresh);
         worker().post(AliveHooks::enableLauncherWallpaperScroll);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{

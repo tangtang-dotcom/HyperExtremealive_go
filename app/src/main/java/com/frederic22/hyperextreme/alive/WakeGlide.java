@@ -25,18 +25,24 @@ import java.util.WeakHashMap;
  */
 final class WakeGlide {
     private static final long WINDOW_MS = 2500L;     // clamp window after wake
-    private static final float GLIDE_SECONDS = 1.2f; // brightening glide duration
+    private static final float GLIDE_SECONDS = 1.2f; // RampAnimator rate hint
+    private static final long SETTLE_MS = 160L;      // wait for the wake target to stop moving
+    private static final long FADE_MS = 200L;        // AOD -> lockscreen cross-fade
 
     private static volatile long wakeAt = Long.MIN_VALUE;
     private static boolean logged;
     private static final WeakHashMap<Class<?>,Object[]> PARTS = new WeakHashMap<>();
     private static final WeakHashMap<Class<?>,Method> PROPERTY_SET = new WeakHashMap<>();
     private static final WeakHashMap<Object,float[]> BASELINE = new WeakHashMap<>();
+    private static final WeakHashMap<Object,SinkState> SINKS = new WeakHashMap<>();
+    private static boolean sinkLogged;
 
     static void onWake(){
         wakeAt=SystemClock.elapsedRealtime();
         logged=false;
+        sinkLogged=false;
         synchronized(BASELINE){BASELINE.clear();}
+        synchronized(SINKS){for(SinkState s:SINKS.values()){s.base=s.last;s.t0=0L;}}
     }
 
     /** After RampAnimator.setAnimationTarget*: keep the rate hint (helps plain AOSP ramps). */
@@ -101,6 +107,55 @@ final class WakeGlide {
             if(set!=null)set.invoke(property,object,value);
         }catch(ReflectiveOperationException|RuntimeException ignored){/* value only */}
     }
+
+    /**
+     * Final Java exit for panel brightness: SurfaceControl.setDisplayBrightness(token, value).
+     * Every brightness write goes through here, whatever RampAnimator/HLG logic produced it.
+     *
+     * AOD -> lockscreen blending: hold the AOD value through the system's wake transient, wait
+     * until the requested value has been stable for SETTLE_MS, then linearly cross-fade to it in
+     * FADE_MS. This turns the 0.1s hardware state switch into a ~0.36s blend that the eye reads
+     * as "just became the lockscreen", never as a flashbang. Units are caller units (nits);
+     * only ratios are used.
+     */
+    static float sink(Object token,float value){
+        if(!Float.isFinite(value)||value<=0f)return value;
+        long at=wakeAt;
+        if(at==Long.MIN_VALUE)return value;
+        long delta=SystemClock.elapsedRealtime()-at;
+        SinkState st;
+        synchronized(SINKS){
+            st=SINKS.get(token);
+            if(st==null){st=new SinkState();st.last=value;SINKS.put(token,st);}
+        }
+        if(delta<0||delta>WINDOW_MS){st.phase=2;st.last=value;return value;}
+        long now=SystemClock.elapsedRealtime();
+        if(st.phase==2){st.last=value;return value;}
+        if(st.phase==0){
+            if(st.t0==0L){st.t0=now;st.start=st.last;st.stableRaw=value;st.stableSince=now;}
+            else if(Math.abs(value-st.stableRaw)>Math.max(0.5f,Math.abs(st.stableRaw)*0.02f)){
+                st.stableRaw=value;st.stableSince=now;
+            }
+            if(now-st.stableSince>=SETTLE_MS){
+                st.phase=1;st.fadeFrom=st.start;st.target=st.stableRaw;st.fadeStart=now;
+            }else{
+                st.last=st.start; // hold the AOD level while the system transient settles
+                if(!sinkLogged){sinkLogged=true;AliveHooks.log("AOD wake glide sink: holding "+st.start+" (target "+value+")");}
+                return st.start;
+            }
+        }
+        if(st.phase==1){
+            float t=Math.min(1f,(now-st.fadeStart)/(float)FADE_MS);
+            float out=st.fadeFrom+(st.target-st.fadeFrom)*t;
+            st.last=out;
+            if(t>=1f)st.phase=2;
+            if(!sinkLogged){sinkLogged=true;AliveHooks.log("AOD wake glide sink: "+st.fadeFrom+" -> "+st.target+" in "+FADE_MS+"ms");}
+            return out;
+        }
+        return value;
+    }
+
+    private static final class SinkState{float base,last,start,stableRaw,fadeFrom,target;long t0,stableSince,fadeStart;int phase;}
 
     private static Object[] parts(Class<?> type){
         Object[] cached;
