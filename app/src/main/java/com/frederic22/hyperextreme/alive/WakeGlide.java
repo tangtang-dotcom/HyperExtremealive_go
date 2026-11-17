@@ -27,7 +27,7 @@ final class WakeGlide {
     private static final long WINDOW_MS = 2500L;     // clamp window after wake
     private static final float GLIDE_SECONDS = 1.2f; // RampAnimator rate hint
     private static final long SETTLE_MS = 160L;      // wait for the wake target to stop moving
-    private static final long FADE_MS = 200L;        // AOD -> lockscreen cross-fade
+    private static final long FADE_MS = 600L;        // AOD -> lockscreen slow cross-fade
 
     private static volatile long wakeAt = Long.MIN_VALUE;
     private static boolean logged;
