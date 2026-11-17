@@ -26,8 +26,8 @@ import java.util.WeakHashMap;
 final class WakeGlide {
     private static final long WINDOW_MS = 2500L;     // clamp window after wake
     private static final float GLIDE_SECONDS = 1.2f; // RampAnimator rate hint
-    private static final long SETTLE_MS = 160L;      // wait for the wake target to stop moving
-    private static final long FADE_MS = 600L;        // AOD -> lockscreen slow cross-fade
+    private static final long SETTLE_MS = 1000L;     // wait out the whole wake overshoot plateau
+    private static final long FADE_MS = 1000L;       // AOD -> lockscreen one-second cross-fade
 
     private static volatile long wakeAt = Long.MIN_VALUE;
     private static boolean logged;
@@ -114,7 +114,7 @@ final class WakeGlide {
      *
      * AOD -> lockscreen blending: hold the AOD value through the system's wake transient, wait
      * until the requested value has been stable for SETTLE_MS, then linearly cross-fade to it in
-     * FADE_MS. This turns the 0.1s hardware state switch into a ~0.36s blend that the eye reads
+     * FADE_MS. This turns the 0.1s hardware state switch into a ~2s hold-then-fade that the eye reads
      * as "just became the lockscreen", never as a flashbang. Units are caller units (nits);
      * only ratios are used.
      */
