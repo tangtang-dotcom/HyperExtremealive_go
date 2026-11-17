@@ -258,14 +258,6 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Fast downward ambient follow: DozeAutoBrightnessController debounces darkening by
-        // ~seconds (ring buffer + hysteresis), leaving the panel bright after leaving the sun.
-        // Commit the freshly computed lower value immediately; brightening stays debounced.
-        hook(module,loader,"com.android.server.display.DozeAutoBrightnessController","updateAutoBrightness",chain->{
-            Object result=chain.proceed();
-            DozeFastDown.apply(chain.getThisObject());
-            return result;
-        });
         // No lockscreen cap observation anymore: the AOD keeps its full range and the wake
         // transition is smoothed at the backlight-ramp level (WakeGlide below).
         hook(module,loader,"com.android.server.display.RampAnimator","setAnimationTarget",chain->{
