@@ -80,6 +80,7 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
+            float ambientLux=controller==null?Float.NaN:(Float)field(controller,"mAmbientLux");
             // No lockscreen cap: the AOD keeps its full multiplier range, and the wake
             // transition is smoothed at the backlight-ramp level instead (WakeGlide).
             float held;
@@ -87,11 +88,11 @@ final class MiuiAodPanelBrightness {
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
                 if(!decision.equals(lastDecision)){lastDecision=decision;log.accept("AOD Xiaomi scope "+decision);}
                 if(!owned||!eligible||AodBrightness.normalize(level)==0){return original;}
-                held=hold.brightness(nativeBrightness,level);
+                held=hold.brightness(nativeBrightness,level,ambientLux);
             }
             if(held==nativeBrightness||!AodPanelHold.valid(held))return original;
             Object result=copyBrightness(original,held);
-            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" held="+held+" level="+level);
+            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" lux="+ambientLux+" held="+held+" level="+level);
             return result;
         }catch(ReflectiveOperationException|RuntimeException|LinkageError unavailable){
             clear();

@@ -16,12 +16,13 @@ final class AodPanelHold {
 
     static boolean valid(float value){return Float.isFinite(value)&&value>0&&value<=1;}
 
-    float brightness(float requested,float level){
+    float brightness(float requested,float level,float ambientLux){
         if(AodBrightness.normalize(level)==0)return requested;
         if(!valid(requested))return requested;
         float lv=AodBrightness.normalize(level);
-        float lowMax=AodBrightness.aodDarkFactor(lv);    // dark-end multiplier (lv5 -> x26)
-        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x8)
+        float gain=ambientGain(ambientLux);                // ambient comfort: dark rooms get a much smaller lift
+        float lowMax=1f+(AodBrightness.aodDarkFactor(lv)-1f)*gain;   // dark-end multiplier (lv5 -> up to x26)
+        float highMin=1f+(AodBrightness.aodBrightFactor(lv)-1f)*gain; // bright-end multiplier (lv5 -> up to x8)
         float out;
         if(requested<=DARK_R){
             out=requested*lowMax;                       // dim: big boost
@@ -35,6 +36,14 @@ final class AodPanelHold {
         if(out>1f)out=1f;               // panel physical ceiling
         if(out<requested)out=requested; // monotonic: never dimmer than the stock doze value
         return out;
+    }
+
+    /** 0..1 comfort weight from the live AOD ambient lux: 1 lux ~0.20, 100 lux ~0.62, 3000+ lux = 1.0. */
+    private static float ambientGain(float lux){
+        if(!Float.isFinite(lux)||lux<0f)return 1f;
+        float t=(float)(Math.log10(lux+1.0)/3.5);
+        if(t<0f)t=0f; else if(t>1f)t=1f;
+        return 0.12f+0.88f*t;
     }
 
     static boolean eligible(boolean owned,boolean fullAod,boolean interactive,int display,int policy,int state){
