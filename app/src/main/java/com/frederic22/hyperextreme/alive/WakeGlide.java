@@ -44,14 +44,15 @@ final class WakeGlide {
         try{
             Object[] parts=parts(animator.getClass());
             if(parts.length==0)return;
-            float current=(Float)parts[0].getFloat(animator),target=(Float)parts[1].getFloat(animator),rate=(Float)parts[2].getFloat(animator);
-            if(!(target>current+0.0005f))return; // only re-rate brightening ramps
-            if(parts[3].getInt(animator)!=0)return;  // main display only
-            float limited=(target-current)/GLIDE_SECONDS;
-            if(!(rate>limited))return;           // already gentler: keep stock behaviour
+            Field current=(Field)parts[0],target=(Field)parts[1],rate=(Field)parts[2],display=(Field)parts[3];
+            float cur=current.getFloat(animator),tgt=target.getFloat(animator),old=rate.getFloat(animator);
+            if(!(tgt>cur+0.0005f))return; // only re-rate brightening ramps
+            if(display.getInt(animator)!=0)return;  // main display only
+            float limited=(tgt-cur)/GLIDE_SECONDS;
+            if(!(old>limited))return;           // already gentler: keep stock behaviour
             Method setRate=(Method)parts[4];
             if(setRate!=null)setRate.invoke(animator,limited);
-            parts[2].setFloat(animator,limited);
+            rate.setFloat(animator,limited);
             if(!logged){logged=true;AliveHooks.log("AOD wake glide: brightening ramps re-rated to "+GLIDE_SECONDS+"s for "+WINDOW_MS+"ms");}
         }catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){/* stock ramp */}
     }
