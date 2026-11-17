@@ -4,34 +4,35 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class AodPanelHoldTest {
-    @Test public void holdsEntryInsteadOfAlreadyDimmedSensorBrightness(){
+    @Test public void levelZeroReturnsTheStockDozeValue(){
         AodPanelHold hold=new AodPanelHold();
-        assertEquals(.104163945f,hold.brightness(.013708094f,.104163945f,5,true),0);
-        for(int cycle=0;cycle<60;cycle++)for(float sensor:new float[]{.002f,.013f,.03f,.006f})
-            assertEquals(.104163945f,hold.brightness(sensor,.229f,5,true),0);
+        assertEquals(.02f,hold.brightness(.02f,0),0);
+        assertEquals(.013f,hold.brightness(.013f,0),0);
     }
-    @Test public void brightnessGainIsNotAppliedTwiceToThePanel(){
-        for(float level:new float[]{.25f,1,2.5f,5,10}){
-            AodPanelHold hold=new AodPanelHold();
-            assertEquals(.1f,hold.brightness(.013f,.1f,level,true),0);
+    @Test public void darkEndUsesTheLargeMultiplier(){
+        AodPanelHold hold=new AodPanelHold();
+        assertEquals(.0137f*(1f+5f),hold.brightness(.0137f,1),1e-6);
+        assertEquals(.013708094f*(1f+25f),hold.brightness(.013708094f,5),1e-5);
+    }
+    @Test public void brightEndUsesTheSmallMultiplierUpToThePanelCeiling(){
+        AodPanelHold hold=new AodPanelHold();
+        assertEquals(.3f*(1f+1.4f*2.5f),hold.brightness(.3f,2.5f),1e-4);
+        assertEquals(1f,hold.brightness(.2f,5),0); // .2 * x8 -> clamped to the panel ceiling
+    }
+    @Test public void midRangeBridgesMonotonicallyWithoutSteps(){
+        AodPanelHold hold=new AodPanelHold();
+        assertEquals(.02f*(1f+25f),hold.brightness(.02f,5),1e-5); // left edge == dark end
+        assertEquals(.15f*(1f+1.4f*5f),hold.brightness(.15f,5),1e-5); // right edge == bright end
+        float previous=-1;
+        for(float f=.02f;f<=.15f;f+=.005f){
+            float out=hold.brightness(f,5);
+            assertTrue(out>=previous);previous=out;
         }
     }
-    @Test public void zeroAndWakeRestoreNativeAndReleaseThePreviousEntry(){
-        AodPanelHold hold=new AodPanelHold();
-        hold.brightness(.013f,.1f,5,true);
-        assertEquals(.02f,hold.brightness(.02f,.1f,0,true),0);
-        assertEquals(.2f,hold.brightness(.01f,.2f,5,true),0);
-        assertEquals(.03f,hold.brightness(.03f,.2f,5,false),0);
-        assertEquals(.15f,hold.brightness(.01f,.15f,5,true),0);
-        hold.clear(); // Automatic OFF ends the session even without a wake broadcast.
-        assertEquals(.08f,hold.brightness(.01f,.08f,5,true),0);
-    }
-    @Test public void unknownEntryFallsBackOnceAndInvalidRequestsRemainNative(){
+    @Test public void invalidRequestsRemainNative(){
         AodPanelHold hold=new AodPanelHold();
         for(float invalid:new float[]{0,-1,2,Float.POSITIVE_INFINITY,Float.NaN})
-            assertEquals(invalid,hold.brightness(invalid,.1f,5,true),0);
-        assertEquals(.013f,hold.brightness(.013f,Float.NaN,5,true),0);
-        assertEquals(.013f,hold.brightness(.03f,.1f,5,true),0);
+            assertEquals(invalid,hold.brightness(invalid,5),0);
     }
     @Test public void scopeIncludesAnimatedAodButExcludesWakeOffOtherDisplaysAndWallpapers(){
         for(int state:new int[]{2,3,4})assertTrue(AodPanelHold.eligible(true,true,false,0,1,state));

@@ -61,7 +61,7 @@ public final class AliveHooks {
         return ipc;
     }
 
-    private static void log(String message) {
+    static void log(String message) {
         Log.i(Protocol.TAG, message);
         if (logger != null) logger.log(Log.INFO, Protocol.TAG, message);
     }
@@ -258,12 +258,12 @@ public final class AliveHooks {
             if(chain.getArgs().size()==2)MIUI_AOD_PANEL.powerRequest(chain.getThisObject(),chain.getArgs().get(0));
             return chain.proceed();
         });
-        // Read-only observation of the real non-doze brightness: gives the AOD ceiling the exact
-        // value the lockscreen will land on (auto-brightness included).
-        hook(module,loader,"com.android.server.display.brightness.DisplayBrightnessController","updateBrightness",chain->{
-            Object state=chain.proceed();
-            ScreenBrightnessRef.observe(chain.getArgs(),state);
-            return state;
+        // No lockscreen cap observation anymore: the AOD keeps its full range and the wake
+        // transition is smoothed at the backlight-ramp level (WakeGlide below).
+        hook(module,loader,"com.android.server.display.RampAnimator","setAnimationTarget",chain->{
+            Object result=chain.proceed();
+            WakeGlide.glide(chain.getThisObject());
+            return result;
         });
         worker().post(AliveHooks::refresh);
         worker().post(AliveHooks::enableLauncherWallpaperScroll);
@@ -288,6 +288,7 @@ public final class AliveHooks {
                 hook(module, loader, type, method, chain -> {
                     boolean sleep = method.startsWith("goToSleep");
                     MIUI_AOD_PANEL.clear();
+                    if(!sleep) WakeGlide.onWake();
 
                     boolean biometric = false;
                     for (Object arg : chain.getArgs()) {

@@ -19,14 +19,12 @@ public class MiuiAodPanelBrightnessTest {
         Object original=new Object();
         assertSame(original,adapter.update(new Object(),new Object(),original,5,message->{}));
     }
-    @Test public void automaticOffClearsHoldWithoutAUserWake() throws Exception {
+    @Test public void clearResetsTheDecisionCache() throws Exception {
         MiuiAodPanelBrightness adapter=new MiuiAodPanelBrightness();
-        java.lang.reflect.Field field=MiuiAodPanelBrightness.class.getDeclaredField("sessions");field.setAccessible(true);
-        @SuppressWarnings("unchecked") java.util.Map<Object,AodPanelHold> sessions=(java.util.Map<Object,AodPanelHold>)field.get(adapter);
-        AodPanelHold hold=new AodPanelHold();hold.brightness(.013f,.1f,5,true);sessions.put(this,hold);
-        adapter.powerRequest(new Display(0),new Request(1,4));assertEquals(1,sessions.size());
-        adapter.powerRequest(new Display(1),new Request(1,1));assertEquals(1,sessions.size());
-        adapter.powerRequest(new Display(0),new Request(1,1));assertTrue(sessions.isEmpty());
+        java.lang.reflect.Field decision=MiuiAodPanelBrightness.class.getDeclaredField("lastDecision");decision.setAccessible(true);
+        decision.set(adapter,"owned=true full=true interactive=false display=0 policy=1 state=3 level=5");
+        adapter.clear();
+        assertEquals("",decision.get(adapter));
     }
     public static final class Display {private final int mDisplayId;Display(int id){mDisplayId=id;}}
     public static final class Request {public int policy,dozeScreenState;Request(int p,int s){policy=p;dozeScreenState=s;}}

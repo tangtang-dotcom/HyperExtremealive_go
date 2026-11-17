@@ -4,12 +4,10 @@ package com.frederic22.hyperextreme.alive;
  * Adaptive AOD lift: dim AOD gets a large multiplier, already-bright AOD gets a small one.
  * The input is the live ambient-computed doze brightness (real-time), so this follows ambient
  * every frame. Slider level 1..5 scales the aggressiveness:
- *   - dark end multiplier   = 1 + 1.8*level   (level 5 -> x10, level 1 -> x2.8)
- *   - bright end multiplier = 1 + 0.30*level  (level 5 -> x2.5, level 1 -> x1.30)
- * The result is finally capped at the live screen/lock brightness, so AOD can never out-shine
- * the lockscreen it hands over to — except that the cap never dims below the stock doze value:
- * on a dark night the lockscreen can sit under the doze brightness, and there AOD simply
- * returns to stock (no boost, no step).
+ *   - dark end multiplier   = 1 + 5.0*level   (level 5 -> x26, level 1 -> x6)
+ *   - bright end multiplier = 1 + 1.4*level   (level 5 -> x8, level 1 -> x2.4)
+ * There is deliberately NO lockscreen cap here: the AOD keeps its full range. The AOD ->
+ * lockscreen transition flash is handled at the backlight-ramp level instead (WakeGlide).
  */
 final class AodPanelHold {
     // Below DARK_R the full dark multiplier applies; above BRIGHT_R the small bright multiplier does.
@@ -18,12 +16,12 @@ final class AodPanelHold {
 
     static boolean valid(float value){return Float.isFinite(value)&&value>0&&value<=1;}
 
-    float brightness(float requested,float capRef,float level,boolean eligible){
-        if(!eligible||AodBrightness.normalize(level)==0)return requested;
+    float brightness(float requested,float level){
+        if(AodBrightness.normalize(level)==0)return requested;
         if(!valid(requested))return requested;
         float lv=AodBrightness.normalize(level);
-        float lowMax=AodBrightness.aodDarkFactor(lv);    // dark-end multiplier (lv5 -> x10)
-        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x2.5)
+        float lowMax=AodBrightness.aodDarkFactor(lv);    // dark-end multiplier (lv5 -> x26)
+        float highMin=AodBrightness.aodBrightFactor(lv);  // bright-end multiplier (lv5 -> x8)
         float out;
         if(requested<=DARK_R){
             out=requested*lowMax;                       // dim: big boost
@@ -36,15 +34,6 @@ final class AodPanelHold {
         }
         if(out>1f)out=1f;               // panel physical ceiling
         if(out<requested)out=requested; // monotonic: never dimmer than the stock doze value
-        // `capRef` is the live screen/lock brightness the panel will land on after AOD. The cap
-        // is applied last and may override the monotonic rule ("never out-shine the lockscreen"
-        // wins), but its floor is the stock doze value: at night the lockscreen can be dimmer
-        // than doze, and there the AOD lift is simply neutralized back to stock.
-        if(valid(capRef)){
-            float cap=Math.min(1f,capRef);
-            if(cap<requested)cap=requested;
-            out=Math.min(out,cap);
-        }
         return out;
     }
 

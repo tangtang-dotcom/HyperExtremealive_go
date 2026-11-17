@@ -80,46 +80,18 @@ final class MiuiAodPanelBrightness {
             float nativeBrightness=(Float)original.getClass().getMethod("getBrightness").invoke(original);
             Object controller=field(stub,"mDozeAutoBrightnessController");
             float normal=controller==null?Float.NaN:(Float)field(controller,"mNormalBrightness");
-            // Cap the AOD lift at the brightness the lockscreen will actually land on. The
-            // DisplayBrightnessController observation is authoritative (auto-brightness output);
-            // request.screenBrightness is only the user setting, so it is just a fallback.
-            float capRef=ScreenBrightnessRef.get();
-            if(!AodPanelHold.valid(capRef)){ // the user setting is only a fallback, never a override
-                try{
-                    float screen=(Float)field(request,"screenBrightness");
-                    if(AodPanelHold.valid(screen))capRef=screen;
-                }catch(ReflectiveOperationException|RuntimeException ignored){/* try the override next */}
-            }
-            if(!AodPanelHold.valid(capRef)){
-                try{
-                    float screen=(Float)field(request,"screenBrightnessOverride");
-                    if(AodPanelHold.valid(screen))capRef=screen;
-                }catch(ReflectiveOperationException|RuntimeException ignored){/* fall back below */}
-            }
-            if(!AodPanelHold.valid(capRef))capRef=normal;
-            // The observed lockscreen value froze at screen-off, but ambient light keeps moving.
-            // Once the doze controller's own lux stream is live, let the estimate REPLACE the
-            // frozen value: the ceiling then follows the environment in both directions (out in
-            // sun -> rises; back indoor / pocket -> falls). Until the first lux sample arrives
-            // (or if reflection fails) the frozen observation keeps charge, which is correct at
-            // screen-off time anyway. The C-floor in AodPanelHold keeps night AOD at stock doze.
-            if(controller!=null){
-                try{
-                    float lux=(Float)field(controller,"mAmbientLux");
-                    float est=ambientEst(lux);
-                    if(AodPanelHold.valid(est))capRef=est;
-                }catch(ReflectiveOperationException|RuntimeException ignored){/* keep the frozen cap */}
-            }
+            // No lockscreen cap: the AOD keeps its full multiplier range, and the wake
+            // transition is smoothed at the backlight-ramp level instead (WakeGlide).
             float held;
             synchronized(this){
                 String decision="owned="+owned+" full="+full+" interactive="+interactive+" display="+display+" policy="+policy+" state="+state+" level="+level;
                 if(!decision.equals(lastDecision)){lastDecision=decision;log.accept("AOD Xiaomi scope "+decision);}
                 if(!owned||!eligible||AodBrightness.normalize(level)==0){return original;}
-                held=hold.brightness(nativeBrightness,capRef,level,true);
+                held=hold.brightness(nativeBrightness,level);
             }
             if(held==nativeBrightness||!AodPanelHold.valid(held))return original;
             Object result=copyBrightness(original,held);
-            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" cap="+capRef+" held="+held+" level="+level);
+            log.accept("AOD Xiaomi panel native="+nativeBrightness+" entry="+normal+" held="+held+" level="+level);
             return result;
         }catch(ReflectiveOperationException|RuntimeException|LinkageError unavailable){
             clear();
@@ -129,27 +101,6 @@ final class MiuiAodPanelBrightness {
     }
 
     private static final java.util.WeakHashMap<Class<?>,Object[]> COPY_METHODS=new java.util.WeakHashMap<>();
-
-    // Lockscreen-brightness estimate for the CURRENT ambient light, log-linear piecewise in lux:
-    // 1 lux -> ~14 nit, 50 -> ~85 (measured on this device: lux 50 -> brt 0.0355), 700 -> ~137
-    // (measured: lux 710 -> brt 0.057), 10000 -> ~1060 (MIUI's outdoor auto-brightness anchor).
-    // The AOD's own light sensor keeps sampling while dozing, so this tracks the environment in
-    // BOTH directions: walking out raises the ceiling, walking back in lowers it again. Returns
-    // NaN when lux is unknown, so the frozen screen-off observation stays in charge until the
-    // first doze sample arrives. Conservative versus the real auto-brightness curve, so the AOD
-    // ceiling never over-shoots the lockscreen it hands over to (no wake flash).
-    private static float ambientEst(float lux){
-        if(!Float.isFinite(lux)||lux<1f)return Float.NaN;
-        float[] xs={1f,50f,700f,10000f}, ys={0.006f,0.0355f,0.057f,0.44f};
-        if(lux>=xs[3])return ys[3];
-        for(int i=1;i<xs.length;i++){
-            if(lux<=xs[i]){
-                float t=(float)((Math.log(lux)-Math.log(xs[i-1]))/(Math.log(xs[i])-Math.log(xs[i-1])));
-                return ys[i-1]+(ys[i]-ys[i-1])*t;
-            }
-        }
-        return ys[3];
-    }
 
     static Object copyBrightness(Object original,float brightness) throws ReflectiveOperationException {
         // Clone every native field; downstream thermal/power caps and brightness reasons remain.
