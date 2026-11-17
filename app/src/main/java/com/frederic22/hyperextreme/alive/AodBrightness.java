@@ -15,8 +15,8 @@ public final class AodBrightness {
     // so the slider table always matches what actually happens to the panel. Large dark-end
     // multipliers are safe: the AOD -> lockscreen transition is smoothed by WakeGlide, which
     // re-rates the wake backlight ramps, so no lockscreen cap is needed.
-    public static float aodDarkFactor(float level){return 1f+5.0f*normalize(level);}    // dim AOD: x6 (lv1) .. x26 (lv5)
-    public static float aodBrightFactor(float level){return 1f+1.4f*normalize(level);}  // bright AOD: x2.4 .. x8
+    public static float aodDarkFactor(float level){return 1f+1.8f*normalize(level);}    // dim AOD: x2.8 (lv1) .. x10 (lv5)
+    public static float aodBrightFactor(float level){return 1f+0.30f*normalize(level);} // bright AOD: x1.30 (lv1) .. x2.5 (lv5)
     public static float load(Context context){return normalize(Config.prefs(context).getFloat(KEY,DEFAULT));}
     public static void save(Context context,float value){
         Config.prefs(context).edit().putFloat(KEY,normalize(value)).apply();

@@ -44,7 +44,7 @@ internal fun AodBrightnessControl(value: Float, onChange: (Float) -> Unit) {
                 }
             }
         }
-        Text("0=不修改；越暗乘得越多：1档暗处×6…5档×26，亮处×2.4…×8；AOD→锁屏的过渡自动缓动，不爆闪。",
+        Text("0=不修改；越暗乘得越多：1档暗处×2.8…5档×10，亮处×1.3…×2.5；AOD→锁屏的过渡自动缓动，不爆闪。",
             style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
     }
 }
