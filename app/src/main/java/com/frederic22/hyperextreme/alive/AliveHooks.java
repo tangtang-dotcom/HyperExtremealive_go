@@ -265,6 +265,11 @@ public final class AliveHooks {
             WakeGlide.glide(chain.getThisObject());
             return result;
         });
+        hook(module,loader,"com.android.server.display.RampAnimator","performNextAnimationStep",chain->{
+            Object result=chain.proceed();
+            WakeGlide.step(chain.getThisObject());
+            return result;
+        });
         worker().post(AliveHooks::refresh);
         worker().post(AliveHooks::enableLauncherWallpaperScroll);
         hook(module,loader,"android.hardware.display.AmbientDisplayConfiguration","alwaysOnAvailable",chain->{
