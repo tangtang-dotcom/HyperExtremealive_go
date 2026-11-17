@@ -129,15 +129,16 @@ final class MiuiAodPanelBrightness {
     private static final java.util.WeakHashMap<Class<?>,Object[]> COPY_METHODS=new java.util.WeakHashMap<>();
 
     // Lockscreen-brightness estimate for strong ambient light, log-linear in lux:
-    // 500 lux -> ~120 nit, 10000 lux -> ~840 nit. Below 500 lux it returns NaN (use the observed
-    // cap unchanged); the values stay conservative versus the real auto-brightness curve so the
-    // AOD ceiling never over-shoots the lockscreen it hands over to.
+    // 500 lux -> ~120 nit, 10000 lux -> ~1060 nit (MIUI's own outdoor auto-brightness anchor).
+    // Below 500 lux it returns NaN (use the observed cap unchanged); the values stay conservative
+    // versus the real auto-brightness curve so the AOD ceiling never over-shoots the lockscreen
+    // it hands over to.
     private static final float OUTDOOR_LUX_MIN=500f, OUTDOOR_LUX_MAX=10000f;
     private static float outdoorCap(float lux){
         if(!Float.isFinite(lux)||lux<=OUTDOOR_LUX_MIN)return Float.NaN;
-        if(lux>=OUTDOOR_LUX_MAX)return 0.35f;
+        if(lux>=OUTDOOR_LUX_MAX)return 0.44f;
         float t=(float)((Math.log(lux)-Math.log(OUTDOOR_LUX_MIN))/(Math.log(OUTDOOR_LUX_MAX)-Math.log(OUTDOOR_LUX_MIN)));
-        return 0.05f+(0.35f-0.05f)*t;
+        return 0.05f+(0.44f-0.05f)*t;
     }
 
     static Object copyBrightness(Object original,float brightness) throws ReflectiveOperationException {
