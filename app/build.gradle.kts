@@ -42,8 +42,8 @@ android {
         applicationId = "com.xtg.hyperextremealive"
         minSdk = if (legacyUiSmoke) 31 else 33
         targetSdk = 37
-        versionCode = 103
-        versionName = "0.5-alive.7-ui.85-classic" + if (legacyUiSmoke) "-ui-smoke-api31" else ""
+        versionCode = 105
+        versionName = "0.5-alive.7-ui.87-classicfix" + if (legacyUiSmoke) "-ui-smoke-api31" else ""
 
         ndk {
             abiFilters += "arm64-v8a"

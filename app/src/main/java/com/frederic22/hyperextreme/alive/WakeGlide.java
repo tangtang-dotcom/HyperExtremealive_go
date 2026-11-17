@@ -42,7 +42,12 @@ final class WakeGlide {
         logged=false;
         sinkLogged=false;
         synchronized(BASELINE){BASELINE.clear();}
-        synchronized(SINKS){for(SinkState s:SINKS.values()){s.base=s.last;s.t0=0L;}}
+        // Re-arm the sink blend on every wake: without the phase reset the hold-settle-fade
+        // cycle ran only for the FIRST wake after boot and later wakes fell back to the raw
+        // ramp clamp. st.last still tracks the last value that reached the panel (the AOD
+        // level, since the sink is a pass-through outside the window), so st.start re-seeds
+        // from it once t0==0 triggers the re-seed branch.
+        synchronized(SINKS){for(SinkState s:SINKS.values()){s.base=s.last;s.t0=0L;s.phase=0;}}
     }
 
     /** After RampAnimator.setAnimationTarget*: keep the rate hint (helps plain AOSP ramps). */
